@@ -1,0 +1,23 @@
+AArch64 example079
+"DpAddrdRPA LxSxAP RfePA LxSxAP PodWWPL RfeLP"
+Cycle=RfePA LxSxAP PodWWPL RfeLP DpAddrdRPA LxSxAP
+Relax=
+Safe=Rfe DpAddrdR PodWWPL LxSxAP
+Generator=diy7 (version 7.56+02~dev)
+Prefetch=0:x=F,0:y=W,1:y=F,1:x=W
+Com=Rf Rf
+Orig=DpAddrdRPA LxSxAP RfePA LxSxAP PodWWPL RfeLP
+{
+0:X0=x; 0:X3=y;
+1:X0=y; 1:X5=x;
+}
+ P0                | P1              ;
+ LDR W1,[X0]       | MOV W2,#2       ;
+ MOV W6,#1         | Loop01:         ;
+ EOR W2,W1,W1      | LDAXR W1,[X0]   ;
+ ADD X4,X3,W2,SXTW | STXR W3,W2,[X0] ;
+ Loop00:           | CBNZ W3,Loop01  ;
+ LDAXR W5,[X4]     | MOV W4,#1       ;
+ STXR W7,W6,[X4]   | STLR W4,[X5]    ;
+ CBNZ W7,Loop00    |                 ;
+exists (y=2 /\ 0:X1=1 /\ 0:X5=0 /\ 1:X1=1)

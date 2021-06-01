@@ -1,0 +1,22 @@
+AArch64 example012
+"DMB.STdWW Rfe DMB.LDdRRPA LxSxAP Coe"
+Cycle=Rfe DMB.LDdRRPA LxSxAP Coe DMB.STdWW
+Relax=
+Safe=Rfe Coe DMB.LDdRR DMB.STdWW LxSxAP
+Generator=diy7 (version 7.56+02~dev)
+Prefetch=0:x=F,0:y=W,1:y=F,1:x=W
+Com=Rf Co
+Orig=DMB.STdWW Rfe DMB.LDdRRPA LxSxAP Coe
+{
+0:X1=x; 0:X3=y;
+1:X0=y; 1:X2=x;
+}
+ P0          | P1              ;
+ MOV W0,#2   | LDR W1,[X0]     ;
+ STR W0,[X1] | DMB LD          ;
+ DMB ST      | MOV W4,#1       ;
+ MOV W2,#1   | Loop00:         ;
+ STR W2,[X3] | LDAXR W3,[X2]   ;
+             | STXR W5,W4,[X2] ;
+             | CBNZ W5,Loop00  ;
+exists (x=2 /\ 1:X1=1 /\ 1:X3=0)
