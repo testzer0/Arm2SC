@@ -1,0 +1,61 @@
+109c109
+< RV+LB+ctrl+addr-fri-rfi-addr.litmus : unsatisfiable
+---
+> RV+LB+ctrl+addr-fri-rfi-addr.litmus : satisfiable
+123c123
+< RV+LB+ctrl+addr-fri-rfi-ctrl.litmus : unsatisfiable
+---
+> RV+LB+ctrl+addr-fri-rfi-ctrl.litmus : satisfiable
+157c157
+< RV+MP+fence.rw.rw+fri-rfi-addr-fri-rfi.litmus : satisfiable
+---
+> RV+MP+fence.rw.rw+fri-rfi-addr-fri-rfi.litmus : unsatisfiable
+201c201
+< RV+LB+fence.rw.rw+addr-wsi-rfi-ctrl.litmus : unsatisfiable
+---
+> RV+LB+fence.rw.rw+addr-wsi-rfi-ctrl.litmus : satisfiable
+241c241
+< RV+LB+fence.r.rw+addr-po.litmus : unsatisfiable
+---
+> RV+LB+fence.r.rw+addr-po.litmus : satisfiable
+254c254
+< RV+LB+addr+addr-wsi-rfi-addr.litmus : unsatisfiable
+---
+> RV+LB+addr+addr-wsi-rfi-addr.litmus : satisfiable
+305c305
+< RV+LB+addr+addr-fri-rfi-ctrl.litmus : unsatisfiable
+---
+> RV+LB+addr+addr-fri-rfi-ctrl.litmus : satisfiable
+482c482
+< RV+LB+addr+addr-fri-rfi-addr.litmus : unsatisfiable
+---
+> RV+LB+addr+addr-fri-rfi-addr.litmus : satisfiable
+544c544
+< RV+LB+ctrl+addr-wsi-rfi-addr.litmus : unsatisfiable
+---
+> RV+LB+ctrl+addr-wsi-rfi-addr.litmus : satisfiable
+565c565
+< RV+LB+fence.rw.rw+addr-fri-rfi-addr.litmus : unsatisfiable
+---
+> RV+LB+fence.rw.rw+addr-fri-rfi-addr.litmus : satisfiable
+596c596
+< RV+LB+addr+addr-wsi-rfi-ctrl.litmus : unsatisfiable
+---
+> RV+LB+addr+addr-wsi-rfi-ctrl.litmus : satisfiable
+670c670
+< RV+LB+fence.rw.rw+addr-wsi-rfi-addr.litmus : unsatisfiable
+---
+> RV+LB+fence.rw.rw+addr-wsi-rfi-addr.litmus : satisfiable
+688c688
+< RV+LB+fence.rw.rw+addr-fri-rfi-ctrl.litmus : unsatisfiable
+---
+> RV+LB+fence.rw.rw+addr-fri-rfi-ctrl.litmus : satisfiable
+701c701
+< RV+LB+ctrl+addr-wsi-rfi-ctrl.litmus : unsatisfiable
+---
+> RV+LB+ctrl+addr-wsi-rfi-ctrl.litmus : satisfiable
+757c757
+< RV+MP+[rf-fr]-fence.rw.rw+ctrlfencei.litmus : unsatisfiable
+\ No newline at end of file
+---
+> RV+MP+[rf-fr]-fence.rw.rw+ctrlfencei.litmus : unsatisfiable
