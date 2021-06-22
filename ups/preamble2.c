@@ -76,15 +76,13 @@ pthread_mutex_t mutex;
 void init_memory_random()
 {
 	// use if need to init memory with random values
-	int i;
-	for (i = 0; i < ADDRSIZE; i++)
+	for (int i = 0; i < ADDRSIZE; i++)
 		memory[i] = __get_rng();
 }
 
 void init_mark_pre()
 {
-	int i;
-	for (i = 0; i < ADDRSIZE; i++)
+	for (int i = 0; i < ADDRSIZE; i++)
 		mark[i] = -1;
 }
 
@@ -139,6 +137,12 @@ struct proc_local_info{
 	int done;							// whether all transitions are done
 	int finished;						// done AND final register values have been written
 	int allfetched;						// whether all instructions have been fetched
+
+	// bit-vectors showing various stats
+	long long inited, committed;		// i-th bit -> ith guy committed/inited?
+	long long typemask[16];				// mask for each type
+	long long locmask[NADDR];
+	long long regmask[NREGS];
 };
 
 struct proc_local_info procs[NPROC];
@@ -149,23 +153,28 @@ void init_proc_local_info_pre(struct proc_local_info *p)
 {
 	p->cur_fill = 0;
 	p->done = p->finished = p->allfetched = 0;
-	int i;
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		p->status[i] = 0;	// not fetched
 		p->events[i] = p->memory_written[i] =
 		 p->reg_written[i] = p->memory_read[i] = p->memory_write_val[i] =
 		 p->reg_write_val[i] = -1;
 	}
-	for (i = 0; i < NREGS; i++)
+	for (int i = 0; i < NREGS; i++) {
 		p->registers[i] = 0;	// specific ones done by py script
+		p->regmask[i] = 0;
+	}
+	for (int i = 0; i < 16; i++)
+		p->typemask[i] = 0;
+	for (int i = 0; i < ADDRSIZE; i++)
+		p->locmask[i] = 0;
+	p->inited = p->committed = 0;
 }
 
 void init_procs();
 
 void init_all_procs_pre()
 {
-	int i;
-	for (i = 0; i < NPROC; i++) {
+	for (int i = 0; i < NPROC; i++) {
 		procs[i].p = i;
 		init_proc_local_info_pre(&procs[i]);
 	}
@@ -218,8 +227,6 @@ void fetch_next_instr(struct proc_local_info *p)
 void init_ST(struct proc_local_info *p, int ev)
 {	
 	int ins, rprime, r, ir, irprime, rval, rprimeval;
-	int i, in, t, s;
-	int mr, mw;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == ST && p->status[ev] == FETCH);
@@ -230,9 +237,10 @@ void init_ST(struct proc_local_info *p, int ev)
 	rprimeval = p->registers[rprime];
 	ir = 1;
 	irprime = 1;
-	for (i = 0; i < NTIME; i++){
+	for (int i = 0; i < NTIME; i++){
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -258,11 +266,12 @@ void init_ST(struct proc_local_info *p, int ev)
 
 	// However, check that no coherence order violation has
 	// taken place.
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i <= ev)	// we need to start after ev, this way of writing is for CBMC-easy unroll
 			continue;
 		if (i >= p->cur_fill)	// don't look beyond the last event
 			break;
+		int in, mr, mw, s;
 		in = p->events[i];
 		s = p->status[i];
 		mr = p->memory_read[i];
@@ -279,7 +288,6 @@ void init_ST(struct proc_local_info *p, int ev)
 void commit_ST(struct proc_local_info *p, int ev)
 {
 	int ins, rprime, r, cr, irprime, addr;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == ST && p->status[ev] == INIT);
@@ -292,9 +300,10 @@ void commit_ST(struct proc_local_info *p, int ev)
 	
 	// all po-prev ins's should have well defined memory footprints (cW >= iAddr)
 	int undef[NREGS] = {0};
-	for (i = 0; i < NTIME; i++){
+	for (int i = 0; i < NTIME; i++){
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -334,8 +343,6 @@ void commit_ST(struct proc_local_info *p, int ev)
 void init_STL(struct proc_local_info *p, int ev)
 {	
 	int ins, rprime, r, ir, irprime, rval, rprimeval;
-	int i, in, t, s;
-	int mr, mw;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == STL && p->status[ev] == FETCH);
@@ -346,9 +353,10 @@ void init_STL(struct proc_local_info *p, int ev)
 	rprimeval = p->registers[rprime];
 	ir = 1;
 	irprime = 1;
-	for (i = 0; i < NTIME; i++){
+	for (int i = 0; i < NTIME; i++){
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -374,11 +382,12 @@ void init_STL(struct proc_local_info *p, int ev)
 
 	// However, check that no coherence order violation has
 	// taken place.
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i <= ev)	// we need to start after ev, this way of writing is for CBMC-easy unroll
 			continue;
 		if (i >= p->cur_fill)	// don't look beyond the last event
 			break;
+		int in, mr, mw, s;
 		in = p->events[i];
 		s = p->status[i];
 		mr = p->memory_read[i];
@@ -395,7 +404,6 @@ void init_STL(struct proc_local_info *p, int ev)
 void commit_STL(struct proc_local_info *p, int ev)
 {
 	int ins, rprime, r, cr, irprime, addr;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == STL && p->status[ev] == INIT);
@@ -408,9 +416,10 @@ void commit_STL(struct proc_local_info *p, int ev)
 	
 	// all po-prev ins's should have well defined memory footprints (cW >= iAddr)
 	int undef[NREGS] = {0};
-	for (i = 0; i < NTIME; i++){
+	for (int i = 0; i < NTIME; i++){
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -450,8 +459,6 @@ void commit_STL(struct proc_local_info *p, int ev)
 void commit_STX(struct proc_local_info *p, int ev)
 {	
 	int ins, rdoubleprime, rprime, r, cr, irprime, rval, rprimeval;
-	int i, in, t, s;
-	int mr, mw;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == STX && p->status[ev] == FETCH);
@@ -468,6 +475,7 @@ void commit_STX(struct proc_local_info *p, int ev)
 	for (int i = 0; i < NTIME; i++){
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -488,9 +496,10 @@ void commit_STX(struct proc_local_info *p, int ev)
 	p->memory_written[ev] = rprimeval;
 
 	// use them in checks
-	for (i = 0; i < NTIME; i++){
+	for (int i = 0; i < NTIME; i++){
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -525,11 +534,12 @@ void commit_STX(struct proc_local_info *p, int ev)
 
 	// However, check that no coherence order violation has
 	// taken place.
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i <= ev)	// we need to start after ev, this way of writing is for CBMC-easy unroll
 			continue;
 		if (i >= p->cur_fill)	// don't look beyond the last event
 			break;
+		int in, mr, mw, s;
 		in = p->events[i];
 		s = p->status[i];
 		mr = p->memory_read[i];
@@ -546,8 +556,6 @@ void commit_STX(struct proc_local_info *p, int ev)
 void commit_STLX(struct proc_local_info *p, int ev)
 {	
 	int ins, rdoubleprime, rprime, r, cr, irprime, rval, rprimeval;
-	int i, in, t, s;
-	int mr, mw;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == STLX && p->status[ev] == FETCH);
@@ -561,9 +569,10 @@ void commit_STLX(struct proc_local_info *p, int ev)
 	irprime = 1;
 	// all po-prev ins's should have well defined memory footprints (cW >= iAddr)
 	int undef[NREGS] = {0};
-	for (i = 0; i < NTIME; i++){
+	for (int i = 0; i < NTIME; i++){
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -584,9 +593,10 @@ void commit_STLX(struct proc_local_info *p, int ev)
 	p->memory_written[ev] = rprimeval;
 
 	// use them in checks
-	for (i = 0; i < NTIME; i++){
+	for (int i = 0; i < NTIME; i++){
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -621,11 +631,12 @@ void commit_STLX(struct proc_local_info *p, int ev)
 
 	// However, check that no coherence order violation has
 	// taken place.
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i <= ev)	// we need to start after ev, this way of writing is for CBMC-easy unroll
 			continue;
 		if (i >= p->cur_fill)	// don't look beyond the last event
 			break;
+		int in, mr, mw, s;
 		in = p->events[i];
 		s = p->status[i];
 		mr = p->memory_read[i];
@@ -642,7 +653,6 @@ void commit_STLX(struct proc_local_info *p, int ev)
 void init_ASSIGN(struct proc_local_info *p, int ev)
 {
 	int ins, v1, v2, r1, r2, ir1, ir2;
-	int i,s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == ASSIGN && p->status[ev] == FETCH);
@@ -663,9 +673,10 @@ void init_ASSIGN(struct proc_local_info *p, int ev)
 	}
 
 	ir1 = ir2 = 1;
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int s;
 		s = p->status[i];
 		if (p->reg_written[i] == r1) {
 			v1 = p->reg_write_val[i];
@@ -715,7 +726,6 @@ void init_ASSIGN(struct proc_local_info *p, int ev)
 void commit_ASSIGN(struct proc_local_info *p, int ev)
 {
 	int ins, r1, r2, cr1, cr2;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == ASSIGN && p->status[ev] == INIT);
@@ -731,9 +741,10 @@ void commit_ASSIGN(struct proc_local_info *p, int ev)
 	}
 
 	cr1 = cr2 = 1;
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -757,7 +768,6 @@ void commit_ASSIGN(struct proc_local_info *p, int ev)
 void init_LD(struct proc_local_info *p, int ev)
 {
 	int ins, rprime, r, memval, iw, rval, ireg;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == LD && p->status[ev] == FETCH);
@@ -768,9 +778,10 @@ void init_LD(struct proc_local_info *p, int ev)
 	ireg = 1;
 
 	// find rval, and add 1 check
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int s;
 		s = p->status[i];
 
 		if (p->reg_written[i] == r) {
@@ -784,9 +795,10 @@ void init_LD(struct proc_local_info *p, int ev)
 
 	// find CW
 	iw = COMMIT;
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -822,7 +834,6 @@ void init_LD(struct proc_local_info *p, int ev)
 void commit_LD(struct proc_local_info *p, int ev)
 {
 	int ins, rprime, r, addr, cw, cr;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == LD && p->status[ev] == INIT);
@@ -833,9 +844,10 @@ void commit_LD(struct proc_local_info *p, int ev)
 	cw = 1;
 	cr = 1;
 	addr = p->memory_read[ev];
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -859,7 +871,6 @@ void commit_LD(struct proc_local_info *p, int ev)
 void init_LDA(struct proc_local_info *p, int ev)
 {
 	int ins, rprime, r, memval, iw, rval, ireg;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == LDA && p->status[ev] == FETCH);
@@ -870,9 +881,10 @@ void init_LDA(struct proc_local_info *p, int ev)
 	ireg = 1;
 
 	// find rval, and add 1 check
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int s;
 		s = p->status[i];
 
 		if (p->reg_written[i] == r) {
@@ -886,9 +898,10 @@ void init_LDA(struct proc_local_info *p, int ev)
 
 	// find CW
 	iw = COMMIT;
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -924,7 +937,6 @@ void init_LDA(struct proc_local_info *p, int ev)
 void commit_LDA(struct proc_local_info *p, int ev)
 {
 	int ins, rprime, r, addr, cw, cr;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == LDA && p->status[ev] == INIT);
@@ -935,9 +947,10 @@ void commit_LDA(struct proc_local_info *p, int ev)
 	cw = 1;
 	cr = 1;
 	addr = p->memory_read[ev];
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -961,7 +974,6 @@ void commit_LDA(struct proc_local_info *p, int ev)
 void init_LDX(struct proc_local_info *p, int ev)
 {
 	int ins, rprime, r, memval, iw, rval, ireg;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == LDX && p->status[ev] == FETCH);
@@ -972,9 +984,10 @@ void init_LDX(struct proc_local_info *p, int ev)
 	ireg = 1;
 
 	// find rval, and add 1 check
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int s;
 		s = p->status[i];
 
 		if (p->reg_written[i] == r) {
@@ -988,9 +1001,10 @@ void init_LDX(struct proc_local_info *p, int ev)
 
 	// find CW
 	iw = COMMIT;
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -1026,7 +1040,6 @@ void init_LDX(struct proc_local_info *p, int ev)
 void commit_LDX(struct proc_local_info *p, int ev)
 {
 	int ins, rprime, r, addr, cw, cr;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == LDX && p->status[ev] == INIT);
@@ -1037,9 +1050,10 @@ void commit_LDX(struct proc_local_info *p, int ev)
 	cw = 1;
 	cr = 1;
 	addr = p->memory_read[ev];
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -1063,7 +1077,6 @@ void commit_LDX(struct proc_local_info *p, int ev)
 void init_LDAX(struct proc_local_info *p, int ev)
 {
 	int ins, rprime, r, memval, iw, rval, ireg;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == LDAX && p->status[ev] == FETCH);
@@ -1077,6 +1090,7 @@ void init_LDAX(struct proc_local_info *p, int ev)
 	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int s;
 		s = p->status[i];
 
 		if (p->reg_written[i] == r) {
@@ -1090,9 +1104,10 @@ void init_LDAX(struct proc_local_info *p, int ev)
 
 	// find CW
 	iw = COMMIT;
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -1128,7 +1143,6 @@ void init_LDAX(struct proc_local_info *p, int ev)
 void commit_LDAX(struct proc_local_info *p, int ev)
 {
 	int ins, rprime, r, addr, cw, cr;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == LDAX && p->status[ev] == INIT);
@@ -1139,9 +1153,10 @@ void commit_LDAX(struct proc_local_info *p, int ev)
 	cw = 1;
 	cr = 1;
 	addr = p->memory_read[ev];
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -1165,14 +1180,14 @@ void commit_LDAX(struct proc_local_info *p, int ev)
 void commit_DMBSY(struct proc_local_info *p, int ev)
 {
 	int ins;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == DMBSY && p->status[ev] == FETCH);
 
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -1189,16 +1204,16 @@ void commit_DMBSY(struct proc_local_info *p, int ev)
 void commit_ISB(struct proc_local_info *p, int ev) 
 {
 	int ins;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == ISB && p->status[ev] == FETCH);
 
 	// all po-prev ins's should have well defined memory footprints
 	int undef[NREGS] = {0};
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -1226,14 +1241,14 @@ void commit_ISB(struct proc_local_info *p, int ev)
 void commit_DMBLD(struct proc_local_info *p, int ev)
 {
 	int ins;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == DMBLD && p->status[ev] == FETCH);
 
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -1250,14 +1265,14 @@ void commit_DMBLD(struct proc_local_info *p, int ev)
 void commit_DMBST(struct proc_local_info *p, int ev)
 {
 	int ins;
-	int i, in, t, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == DMBST && p->status[ev] == FETCH);
 
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int in, t, s;
 		in = p->events[i];
 		t = p->type[in];
 		s = p->status[i];
@@ -1274,7 +1289,6 @@ void commit_DMBST(struct proc_local_info *p, int ev)
 void commit_ACI(struct proc_local_info *p, int ev)
 {
 	int ins, v1, v2, r1, r2, ir1, ir2;
-	int i, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == ACI && p->status[ev] == FETCH);
@@ -1301,9 +1315,10 @@ void commit_ACI(struct proc_local_info *p, int ev)
 	}
 
 	ir1 = ir2 = 1;
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int s;
 		s = p->status[i];
 		if (p->reg_written[i] == r1) {
 			v1 = p->reg_write_val[i];
@@ -1345,15 +1360,15 @@ void commit_ACI(struct proc_local_info *p, int ev)
 void commit_TERM(struct proc_local_info *p, int ev)
 {
 	int ins;
-	int i, s;
 
 	ins = p->events[ev];
 	ASSUME(p->type[ins] == TERM && p->status[ev] == FETCH);
 
 	// need everything to be finished
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == ev)
 			break;
+		int s;
 		s = p->status[i];
 		ASSUME(s == COMMIT);
 	}
@@ -1366,11 +1381,11 @@ void commit_TERM(struct proc_local_info *p, int ev)
 void *run_proc(void *pv)
 {
 	struct proc_local_info *p = (struct proc_local_info *)pv;
-	int i, ev;
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (!p->allfetched && (get_decision() || p->cur_fill == 0)) {
 			fetch_next_instr(p);
 		} else {
+			int ev;
 			ev = get_rng(0,p->cur_fill-1);
 			ASSUME(p->status[ev] != COMMIT);
 			switch(ev) {
@@ -1442,7 +1457,7 @@ void *run_proc(void *pv)
 
 	// collect final register values
 	// these will be used by the final check
-	for (i = 0; i < NTIME; i++) {
+	for (int i = 0; i < NTIME; i++) {
 		if (i == p->cur_fill)
 			break;
 		if (p->reg_written[i] != -1)
@@ -1461,11 +1476,10 @@ int main(int argc, char **argv)
 	init_memory_and_reg_other();
 
 	pthread_t tids[NPROC];
-	int i;
-	for (i = 0; i < NPROC; i++)
+	for (int i = 0; i < NPROC; i++)
 		pthread_create(&tids[i], NULL, run_proc, (void *)&procs[i]);
 
-	for (i = 0; i < NPROC; i++)
+	for (int i = 0; i < NPROC; i++)
 		pthread_join(tids[i], NULL);
 
 	check_conditions();

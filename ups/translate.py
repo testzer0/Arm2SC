@@ -20,7 +20,7 @@ else:
 	infile = os.path.join(os.getcwd(), sys.argv[1]+'/'+sys.argv[2])
 	outfile = os.path.join(os.getcwd(), 'ups/'+sys.argv[3])
 
-preamblefile = os.path.join(os.getcwd(), 'ups/preamble.c')
+preamblefile = os.path.join(os.getcwd(), 'ups/preamble3.c')
 
 class InstrType(Enum):
 	LD = 1
