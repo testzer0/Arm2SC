@@ -83,6 +83,7 @@ nregs = 16
 addrsize = 64
 nproc = 0
 ncontext = 10 # later read in as argument
+# ncontext = 50 # for complete testing only
 
 code = []
 incode = []
