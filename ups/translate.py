@@ -6,8 +6,7 @@ from enum import Enum
 # 			     translate.py 			    #
 # ========================================= #
 # Translates an input AArch64 multi-thread- #
-# ed program to an equivalent SC program by #
-# making use of context bounding. 			#
+# ed program to an equivalent SC program. 	#
 #############################################
 
 if len(sys.argv) == 1:
@@ -20,7 +19,7 @@ else:
 	infile = os.path.join(os.getcwd(), sys.argv[1]+'/'+sys.argv[2])
 	outfile = os.path.join(os.getcwd(), 'ups/'+sys.argv[3])
 
-preamblefile = os.path.join(os.getcwd(), 'ups/preamble3.c')
+preamblefile = os.path.join(os.getcwd(), 'ups/preamble.c')
 
 class InstrType(Enum):
 	LD = 1
@@ -119,6 +118,15 @@ def add_init_memory_and_reg_other(indentlevel=0):
 	add_indented_code("}", indentlevel)
 	add_indented_code("", indentlevel)
 
+def add_check(indentlevel=0):
+	add_indented_code("void check_conditions() {", indentlevel)
+	add_indented_code("if (", indentlevel+1)
+	for cnd in final_conds:
+		add_indented_code(cnd + " &&", indentlevel+2)
+	add_indented_code("1)", indentlevel+1)
+	add_indented_code("ASSERT(0);", indentlevel+2)
+	add_indented_code("}", indentlevel)
+	add_indented_code("", indentlevel)
 
 def add_ST(p, rprime, r, indentlevel=0):
 	i = procwise_indices[p];
@@ -399,7 +407,7 @@ def parse_from_litmus(ifile):
 		
 		# Add register assignments to output code
 		for reg, var in process_local_mapping[proc].items():
-			istmt = f"procs[{proc}].registers[{reg}] = {var_to_addr_map[var]};"
+			istmt = f"procs[{proc}].registers[{process_reg_to_num_map[proc][reg]}] = {var_to_addr_map[var]};"
 			init_reg.append(istmt)
 
 	while not content[cur_index].startswith("exists"):
@@ -646,7 +654,7 @@ def parse_from_litmus(ifile):
 				process_reg_to_num_map[proc][subparts[0]] = process_reg_nums[proc]
 				process_reg_nums[proc] += 1
 
-			istmt = f"(REGP({proc},{process_reg_to_num_map[proc][subparts[0]]}) == {int(subparts[1])})"
+			istmt = f"(proc_local_info procs[{proc}].registers[{process_reg_to_num_map[proc][subparts[0]]}] == {int(subparts[1])})"
 			final_conds.append(istmt)
 		else:
 			# global constraint on a variable
@@ -658,7 +666,7 @@ def parse_from_litmus(ifile):
 				var_to_addr_map = vind
 				vind += 1
 
-			istmt = f"(MU({var_to_addr_map[parts[0]]},NCONTEXT-1) == {int(parts[1])})"
+			istmt = f"(memory[{var_to_addr_map[parts[0]]}] == {int(parts[1])})"
 			final_conds.append(istmt)
 
 def add_aci_instruction(instr, indentlevel=0):
@@ -761,6 +769,7 @@ def translate_code(indentlevel=0):
 	add_indented_code("}", indentlevel)
 	add_indented_code("", indentlevel)
 	add_init_memory_and_reg_other()
+	add_check()
 
 parse_from_litmus(infile)
 translate_code()

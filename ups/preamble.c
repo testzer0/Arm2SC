@@ -199,6 +199,7 @@ void fetch_next_instr(struct proc_local_info *p)
 	}
 	
 	index = p->cur_fill++;
+	type = p->type[next_ins];
 
 	ASSUME(index < NTIME);
 
@@ -678,7 +679,7 @@ void init_ASSIGN(struct proc_local_info *p, int ev)
 	}
 	ASSUME(ir1 && ir2);
 
-	if (p->t3[ins] == NUM)
+	if (p->t3[ins] == EMPTY)
 		p->reg_write_val[ev] = v1;
 	else {
 		switch(p->operation[ins]) {
@@ -1368,7 +1369,7 @@ void *run_proc(void *pv)
 	struct proc_local_info *p = (struct proc_local_info *)pv;
 	int i, ev;
 	for (i = 0; i < NTIME; i++) {
-		if (!p->allfetched && (get_decision() || p->cur_fill == 0)) {
+		if (!p->allfetched && (p->cur_fill == 0 || get_decision())) {
 			fetch_next_instr(p);
 		} else {
 			ev = get_rng(0,p->cur_fill-1);
