@@ -82,8 +82,8 @@ class Expression:
 nregs = 16
 addrsize = 64
 nproc = 0
-# ncontext = 10 # later read in as argument
-ncontext = 50 # for complete testing only
+ncontext = 10 # later read in as argument
+# ncontext = 50 # for complete testing only
 
 code = []
 incode = []
@@ -210,8 +210,8 @@ def add_initProc(indentlevel=0):
 	add_indented_code("for (int x = 0; x < ADDRSIZE; x++) {", indentlevel+2)
 	add_indented_code("MUINIT(x,k) = __get_rng();", indentlevel+3)
 	add_indented_code("MU(x,k) = MUINIT(x,k);", indentlevel+3)
-	add_indented_code("DELTAINIT(x,k) = -1;", indentlevel+3)
-	add_indented_code("DELTA(x,k) = -1;", indentlevel+3)
+	add_indented_code("DELTAINIT(x,k) = get_rng(-1,NPROC-1);", indentlevel+3)
+	add_indented_code("DELTA(x,k) = DELTAINIT(x,k);", indentlevel+3)
 	add_indented_code("}", indentlevel+2)
 	add_indented_code("} else {", indentlevel+1)
 	add_indented_code("for (int x = 0; x < ADDRSIZE; x++) {", indentlevel+2)
