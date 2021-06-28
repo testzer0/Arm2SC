@@ -1369,20 +1369,75 @@ void *run_proc(void *pv)
 {
 	struct proc_local_info *p = (struct proc_local_info *)pv;
 	int i, ev;
-	fetch_next_instr(p);
-	fetch_next_instr(p);
-	fetch_next_instr(p);
-	fetch_next_instr(p);
-	fetch_next_instr(p);
-	init_ASSIGN(p,0);
-	commit_ASSIGN(p,0);
-	init_ASSIGN(p,2);
-	commit_ASSIGN(p,2);
-	init_ST(p,3);
-	init_ST(p,1);
-	commit_ST(p,3);
-	commit_ST(p,1);
-	commit_TERM(p,4);
+	for (i = 0; i < NTIME; i++) {
+		if (!p->allfetched && (p->cur_fill == 0 || get_decision())) {
+			fetch_next_instr(p);
+		} else {
+			ev = get_rng(0,p->cur_fill-1);
+			ASSUME(p->status[ev] != COMMIT);
+			switch(ev) {
+			case LD:
+				(p->status[ev] == FETCH)?
+					init_LD(p,ev) : commit_LD(p,ev);
+				break;
+			case LDA:
+				(p->status[ev] == FETCH)?
+					init_LDA(p,ev) : commit_LDA(p,ev);
+				break;
+			case LDX:
+				(p->status[ev] == FETCH)?
+					init_LDX(p,ev) : commit_LDX(p,ev);
+				break;
+			case LDAX:
+				(p->status[ev] == FETCH)?
+					init_LDAX(p,ev) : commit_LDAX(p,ev);
+				break;
+			case ST:
+				(p->status[ev] == FETCH)?
+					init_ST(p,ev) : commit_ST(p,ev);
+				break;
+			case STL:
+				(p->status[ev] == FETCH)?
+					init_STL(p,ev) : commit_STL(p,ev);
+				break;
+			case STX:
+				commit_STX(p,ev);
+				break;
+			case STLX:
+				commit_STLX(p,ev);
+				break;
+			case ASSIGN:
+				(p->status[ev] == FETCH)?
+					init_ASSIGN(p,ev) : commit_ASSIGN(p,ev);
+				break;
+			case DMBSY:
+				commit_DMBSY(p,ev);
+				break;
+			case ISB:
+				commit_ISB(p,ev);
+				break;
+			case DMBLD:
+				commit_DMBLD(p,ev);
+				break;
+			case DMBST:
+				commit_DMBST(p,ev);
+				break;
+			case LABEL:
+				// just mark as committed
+				p->status[ev] = COMMIT;
+				break;
+			case ACI:
+				commit_ACI(p,ev);
+				break;
+			case TERM:
+				commit_TERM(p,ev);
+				break;
+			}
+		}
+
+		if (p->done)
+			break;
+	}
 
 	// we don't want runs to overflow NTIME time units
 	ASSUME(p->done);
@@ -1407,13 +1462,58 @@ int main(int argc, char **argv)
 	init_procs();
 	init_memory_and_reg_other();
 
-	pthread_t tids[NPROC];
-	int i;
-	for (i = 0; i < NPROC; i++)
-		pthread_create(&tids[i], NULL, run_proc, (void *)&procs[i]);
+	fetch_next_instr(&procs[0]);
+	fetch_next_instr(&procs[0]);
+	fetch_next_instr(&procs[0]);
+	fetch_next_instr(&procs[0]);
+	fetch_next_instr(&procs[0]);
+	fetch_next_instr(&procs[1]);
+	fetch_next_instr(&procs[1]);
+	fetch_next_instr(&procs[1]);
+	fetch_next_instr(&procs[1]);
+	fetch_next_instr(&procs[1]);
+	init_ASSIGN(&procs[0],0);
+	commit_ASSIGN(&procs[0],0);
+	init_ASSIGN(&procs[0],2);
+	commit_ASSIGN(&procs[0],2);
+	init_ASSIGN(&procs[1],0);
+	commit_ASSIGN(&procs[1],0);
+	init_ASSIGN(&procs[1],2);
+	commit_ASSIGN(&procs[1],2);
+	init_ST(&procs[0],3);
+	init_ST(&procs[0],1);
+	init_ST(&procs[1],3);
+	init_ST(&procs[1],1);
+	commit_ST(&procs[0],3);
+	commit_ST(&procs[1],3);
+	commit_ST(&procs[0],1);
+	commit_ST(&procs[1],1);
+	commit_TERM(&procs[1],4);
+	commit_TERM(&procs[0],4);
 
-	for (i = 0; i < NPROC; i++)
-		pthread_join(tids[i], NULL);
+	// we don't want runs to overflow NTIME time units
+	ASSUME(procs[0].done);
+	ASSUME(procs[1].done);
+
+	// collect final register values
+	// these will be used by the final check
+	int i;
+	for (i = 0; i < NTIME; i++) {
+		if (i == procs[0].cur_fill)
+			break;
+		if (procs[0].reg_written[i] != -1)
+			procs[0].registers[procs[0].reg_written[i]] = procs[0].reg_write_val[i];
+	}
+	for (i = 0; i < NTIME; i++) {
+		if (i == procs[1].cur_fill)
+			break;
+		if (procs[1].reg_written[i] != -1)
+			procs[1].registers[procs[1].reg_written[i]] = procs[1].reg_write_val[i];
+	}
+
+	// finished!
+	procs[0].finished = 1;
+	procs[1].finished = 1;
 
 	check_conditions();
 
@@ -1432,7 +1532,7 @@ void init_procs() {
     procs[0].next1[0] = 1;
     
     procs[0].type[1] = ST;
-    procs[0].o1[1] = 3;
+    procs[0].o1[1] = 2;
     procs[0].t1[1] = REG;
     procs[0].o2[1] = 4;
     procs[0].t2[1] = REG;
@@ -1449,7 +1549,7 @@ void init_procs() {
     procs[0].next1[2] = 3;
     
     procs[0].type[3] = ST;
-    procs[0].o1[3] = 2;
+    procs[0].o1[3] = 3;
     procs[0].t1[3] = REG;
     procs[0].o2[3] = 5;
     procs[0].t2[3] = REG;
@@ -1472,7 +1572,7 @@ void init_procs() {
     procs[1].next1[0] = 1;
     
     procs[1].type[1] = ST;
-    procs[1].o1[1] = 3;
+    procs[1].o1[1] = 2;
     procs[1].t1[1] = REG;
     procs[1].o2[1] = 4;
     procs[1].t2[1] = REG;
@@ -1489,7 +1589,7 @@ void init_procs() {
     procs[1].next1[2] = 3;
     
     procs[1].type[3] = ST;
-    procs[1].o1[3] = 2;
+    procs[1].o1[3] = 3;
     procs[1].t1[3] = REG;
     procs[1].o2[3] = 5;
     procs[1].t2[3] = REG;
@@ -1504,16 +1604,16 @@ void init_procs() {
 
 void init_memory_and_reg_other() {
     
-    procs[0].registers[3] = 0;
     procs[0].registers[2] = 1;
-    procs[1].registers[3] = 1;
+    procs[0].registers[3] = 0;
     procs[1].registers[2] = 0;
+    procs[1].registers[3] = 1;
 }
 
 void check_conditions() {
     if (
-        (memory[0] == 2) &&
         (memory[1] == 2) &&
+        (memory[0] == 2) &&
     1)
         ASSERT(0);
 }

@@ -7,8 +7,10 @@
 #define ADDRSIZE 64
 #define NINS 20
 #define NTIME 45
-#define ASSUME(stmt) __CPROVER_assume(stmt)
-#define ASSERT(stmt) __CPROVER_assert(stmt, "Assert error")
+// #define ASSUME(stmt) __CPROVER_assume(stmt)
+// #define ASSERT(stmt) __CPROVER_assert(stmt, "Assert error")
+#define ASSUME(stmt)
+#define ASSERT(stmt)
 
 // instruction types
 #define LD 1
@@ -54,7 +56,7 @@
   __typeof__ (b) _b = (b); \
   _a > _b ? _a : _b; })
 
-int __get_rng();
+int __get_rng() { return 1; };
 int get_rng(int from, int to)
 {
     int ret = __get_rng();
@@ -68,6 +70,7 @@ int get_decision()
 }
 
 #include <pthread.h>
+#include <stdio.h>
 
 int memory[ADDRSIZE] = {0};
 int mark[ADDRSIZE];
@@ -1381,6 +1384,8 @@ void *run_proc(void *pv)
 	init_ST(p,3);
 	init_ST(p,1);
 	commit_ST(p,3);
+	while (memory[0] != 1 || memory[1] != 1)
+			;//spin
 	commit_ST(p,1);
 	commit_TERM(p,4);
 
@@ -1516,4 +1521,6 @@ void check_conditions() {
         (memory[1] == 2) &&
     1)
         ASSERT(0);
+
+    printf("%d %d\n", memory[0], memory[1]);
 }
