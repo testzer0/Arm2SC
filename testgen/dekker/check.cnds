@@ -1,0 +1,8 @@
+// 2 threads
+// wants_to_enter[2]: an array of bools, addresses 0 through 1
+// turn: an integer, address 2
+// var: the shared variable, address 3
+//
+
+// check whether the shared variable can be 1
+3 : 1
