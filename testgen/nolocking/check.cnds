@@ -3,5 +3,5 @@
 // var: the shared variable, address 2
 //
 
-// check whether the shared variable can be != 2
-not 2 : 2
+// check whether the shared variable can be 1
+0 : 1

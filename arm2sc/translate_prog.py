@@ -744,6 +744,9 @@ def parse_test(idir):
 			elif operation in ["B.EQ", "B.GE", "B.NE", "B.GT"]:
 				stmt = Instruction(proc, InstrType.ACI.value, operation[0]+operation[2:], operands[0])
 				incode[proc].append(stmt)
+			elif operation == "B":
+				stmt = Instruction(proc, InstrType.ACI.value, operation, operands[0])
+				incode[proc].append(stmt)
 			elif operation == "CBZ":
 				operands[0] = register(int(operands[0][1:]))
 				stmt = Instruction(proc, InstrType.ACI.value, "CBZ",	\
@@ -758,10 +761,17 @@ def parse_test(idir):
 	# extract the conditions
 	check = parse_file_without_comments_or_empty_lines('check.cnds', idir)
 	for line in check:
+		contra = False
+		if line.startswith("not"):
+			contra = True
+			line = line[3:].strip()
 		parts = line.split(':')
 		parts[0] = int(parts[0].strip())
 		parts[1] = int(parts[1].strip())
-		istmt = f"(MU({parts[0]},NCONTEXT-1) == {int(parts[1])})"
+		if contra:
+			istmt = f"(MU({parts[0]},NCONTEXT-1) != {int(parts[1])})"
+		else:
+			istmt = f"(MU({parts[0]},NCONTEXT-1) == {int(parts[1])})"
 		final_conds.append(istmt)
 
 	nregs = maxregs + 3
@@ -818,6 +828,11 @@ def add_aci_instruction(instr, indentlevel=0):
 		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= IREG({instr.p},{instr.op2}));", indentlevel)
 		add_indented_code(f"if (REG({instr.p},{instr.op2}) != 0)", indentlevel)
 		add_indented_code(f"goto {instr.op3};", indentlevel+1)
+		add_indented_code("", indentlevel)
+	elif (instr.op1 == "B"):
+		add_indented_code("/* B */", indentlevel)
+		add_control(instr.p, indentlevel)
+		add_indented_code(f"goto {instr.op2};", indentlevel)
 		add_indented_code("", indentlevel)
 
 

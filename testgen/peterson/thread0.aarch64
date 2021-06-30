@@ -14,7 +14,7 @@
 	STR R0,[R1]						;
 // turn = 1;
 	MOV R1,#2 						;
-	STR R0,R1						;
+	STR R0,[R1]						;
 
 // while (flag[1] == 1 && turn == 1) wait
 loop:

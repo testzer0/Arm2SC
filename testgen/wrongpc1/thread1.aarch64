@@ -1,0 +1,45 @@
+////
+// 2 threads
+// arr[3]: array used by producer and consumer - address 0 through 2
+// head: location of head - address 3
+// waszero: whether the consumer found any wrong values - address 4
+// done: used to signal - address 5
+//
+
+////
+// Consumer: go around the array, consuming elements 
+// as they become available
+
+	MOV R0,#0						;
+	MOV R2,#3 						;
+	MOV R3,#5 						;
+looparound:
+	MOV R1,#0						;
+loop:
+// if done then break out
+	LDR R4,[R3]						;
+	CBNZ R4,done					;
+// if current = head then loop
+	LDR R4,[R2]						;
+	CMP R1,R4						;
+	B.EQ loop 						;
+// not equal: check if produced
+	LDR R4,[R1]						;
+	CBZ R4,error					;
+// no error: consume
+	MOV R4,#0 						;
+	STR R4,[R1]						;
+	ADD R1,#1 						;
+// if R1 == 3 then goto looparound, else to loop
+	CMP R1,#3 						;
+	B.EQ looparound					;
+	B loop 							;
+
+error:
+// Error! mark it
+	MOV R0,#1 						;
+	MOV R1,#4 						;
+	STR R0,[R1]						;
+
+done:
+// Nothing

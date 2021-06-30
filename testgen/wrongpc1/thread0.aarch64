@@ -1,0 +1,39 @@
+////
+// 2 threads
+// arr[3]: array used by producer and consumer - address 0 through 2
+// head: location of head - address 3
+// waszero: whether the consumer found any wrong values - address 4
+// done: used to signal - address 5
+//
+
+////
+// Producer: go over the array twice (to "emulate" a circular buffer)
+// and write '1's. Also advance the head pointer.
+
+// pass 1
+	MOV R0,#1						;
+	MOV R1,#0						;
+	MOV R2,#3 						;
+loop1:
+// leftover from previous (or pre-first) iteration: write the value of head
+// head always points to the next-to-be-written location
+	STR R1,[R2]						;
+	STR R0,[R1]						;
+	ADD R1,#1 						;
+	CMP R1,#3 						;
+	B.NE loop1 						;
+
+// pass 2
+	MOV R1,#0
+loop2:
+// leftover from previous iteration: write the value of head
+// head always points to the next-to-be-written location
+	STR R1,[R2]						;
+	STR R0,[R1]						;
+	ADD R1,#1 						;
+	CMP R1,#3 						;
+	B.NE loop2 						;
+
+// All done
+	MOV R1,#5 						;
+	STR R0,[R1]						;

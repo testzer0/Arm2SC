@@ -1,0 +1,9 @@
+// 2 threads
+// arr[3]: array used by producer and consumer - address 0 through 2
+// head: location of head - address 3
+// waszero: whether the consumer found any wrong values - address 4
+// done: used to signal - address 5
+//
+
+// check whether any wrong value could have been read by producer
+4 : 1

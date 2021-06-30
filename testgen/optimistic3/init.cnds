@@ -1,0 +1,11 @@
+// 3 threads
+// var: the shared variable, address 0
+//
+// number of processes
+3
+
+// number of memory locations
+1
+
+// contents:
+0 : 0
