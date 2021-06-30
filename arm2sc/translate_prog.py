@@ -747,6 +747,57 @@ def parse_test(idir):
 			elif operation == "B":
 				stmt = Instruction(proc, InstrType.ACI.value, operation, operands[0])
 				incode[proc].append(stmt)
+			elif operation == "EOR":
+				operands[0] = register(int(operands[0][1:]))
+				if operands[1][0] == '#':
+					type1 = 1
+					operands[1] = int(operands[1][1:])
+				else:
+					type1 = 0
+					operands[1] = register(int(operands[1][1:]))
+				if operands[2][0] == '#':
+					type2 = 1
+					operands[2] = int(operands[2][1:])
+				else:
+					type2 = 0
+					operands[2] = register(int(operands[2][1:]))
+				exp = Expression(type1, operands[1], type2, operands[2], '^')
+				stmt = Instruction(proc, InstrType.ASSIGN.value, operands[0], exp)
+				incode[proc].append(stmt)
+			elif operation == "ADD":
+				operands[0] = register(int(operands[0][1:]))
+				if operands[1][0] == '#':
+					type1 = 1
+					operands[1] = int(operands[1][1:])
+				else:
+					type1 = 0
+					operands[1] = register(int(operands[1][1:]))
+				if operands[2][0] == '#':
+					type2 = 1
+					operands[2] = int(operands[2][1:])
+				else:
+					type2 = 0
+					operands[2] = register(int(operands[2][1:]))
+				exp = Expression(type1, operands[1], type2, operands[2], '+')
+				stmt = Instruction(proc, InstrType.ASSIGN.value, operands[0], exp)
+				incode[proc].append(stmt)
+			elif operation == "SUB":
+				operands[0] = register(int(operands[0][1:]))
+				if operands[1][0] == '#':
+					type1 = 1
+					operands[1] = int(operands[1][1:])
+				else:
+					type1 = 0
+					operands[1] = register(int(operands[1][1:]))
+				if operands[2][0] == '#':
+					type2 = 1
+					operands[2] = int(operands[2][1:])
+				else:
+					type2 = 0
+					operands[2] = register(int(operands[2][1:]))
+				exp = Expression(type1, operands[1], type2, operands[2], '-')
+				stmt = Instruction(proc, InstrType.ASSIGN.value, operands[0], exp)
+				incode[proc].append(stmt)
 			elif operation == "CBZ":
 				operands[0] = register(int(operands[0][1:]))
 				stmt = Instruction(proc, InstrType.ACI.value, "CBZ",	\
@@ -818,7 +869,7 @@ def add_aci_instruction(instr, indentlevel=0):
 		add_control(instr.p, indentlevel)
 		# Shouldnt this be CREG? but then the litmus test e.g. RV+2+2W+rfi+ctrls.litmus fails
 		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= IREG({instr.p},{instr.op2}));", indentlevel)
-		add_indented_code(f"if (REG({instr.p},{instr.op2}) == 0)", indentlevel)
+		add_indented_code(f"if (REGP({instr.p},{instr.op2}) == 0)", indentlevel)
 		add_indented_code(f"goto {instr.op3};", indentlevel+1)
 		add_indented_code("", indentlevel)
 	elif (instr.op1 == "CBNZ"):
@@ -826,7 +877,7 @@ def add_aci_instruction(instr, indentlevel=0):
 		add_control(instr.p, indentlevel)
 		# Shouldnt this be CREG? but then the litmus test e.g. RV+2+2W+rfi+ctrls.litmus fails
 		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= IREG({instr.p},{instr.op2}));", indentlevel)
-		add_indented_code(f"if (REG({instr.p},{instr.op2}) != 0)", indentlevel)
+		add_indented_code(f"if (REGP({instr.p},{instr.op2}) != 0)", indentlevel)
 		add_indented_code(f"goto {instr.op3};", indentlevel+1)
 		add_indented_code("", indentlevel)
 	elif (instr.op1 == "B"):

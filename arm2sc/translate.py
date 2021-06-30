@@ -840,7 +840,8 @@ def parse_from_litmus(ifile):
 					process_reg_nums[proc] += 1
 				if operands[1][0] == '#':
 					type1 = 1
-					operands[1] = operands[1][1:]
+					operands[1] = int(operands[1][1:])
+					op1 = operands[1]
 				else:
 					type1 = 0
 					operands[1] = operands[1][1:]
@@ -848,18 +849,20 @@ def parse_from_litmus(ifile):
 						process_local_regs[proc].add(operands[1])
 						process_reg_to_num_map[proc][operands[1]] = process_reg_nums[proc]
 						process_reg_nums[proc] += 1
+					op1 = process_reg_to_num_map[proc][operands[1]]
 				if operands[2][0] == '#':
 					type2 = 1
-					operands[2] = operands[2][1:]
+					operands[2] = int(operands[2][1:])
+					op2 = operands[2]
 				else:
 					type2 = 0
+					operands[2] = operands[2][1:]
 					if operands[2] not in process_local_regs[proc]:
 						process_local_regs[proc].add(operands[2])
 						process_reg_to_num_map[proc][operands[2]] = process_reg_nums[proc]
 						process_reg_nums[proc] += 1
-					operands[2] = operands[2][1:]
-				exp = Expression(type1, process_reg_to_num_map[proc][operands[1]], type2,	\
-					process_reg_to_num_map[proc][operands[2]], '^')
+					op2 = process_reg_to_num_map[proc][operands[2]]
+				exp = Expression(type1, op1, type2,	op2, '^')
 				stmt = Instruction(proc, InstrType.ASSIGN.value,	\
 					process_reg_to_num_map[proc][operands[0]], exp)
 				incode[proc].append(stmt)
@@ -943,7 +946,7 @@ def add_aci_instruction(instr, indentlevel=0):
 		add_control(instr.p, indentlevel)
 		# Shouldnt this be CREG? but then the litmus test e.g. RV+2+2W+rfi+ctrls.litmus fails
 		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= IREG({instr.p},{instr.op2}));", indentlevel)
-		add_indented_code(f"if (REG({instr.p},{instr.op2}) == 0)", indentlevel)
+		add_indented_code(f"if (REGP({instr.p},{instr.op2}) == 0)", indentlevel)
 		add_indented_code(f"goto {instr.op3};", indentlevel+1)
 		add_indented_code("", indentlevel)
 	elif (instr.op1 == "CBNZ"):
@@ -951,7 +954,7 @@ def add_aci_instruction(instr, indentlevel=0):
 		add_control(instr.p, indentlevel)
 		# Shouldnt this be CREG? but then the litmus test e.g. RV+2+2W+rfi+ctrls.litmus fails
 		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= IREG({instr.p},{instr.op2}));", indentlevel)
-		add_indented_code(f"if (REG({instr.p},{instr.op2}) != 0)", indentlevel)
+		add_indented_code(f"if (REGP({instr.p},{instr.op2}) != 0)", indentlevel)
 		add_indented_code(f"goto {instr.op3};", indentlevel+1)
 		add_indented_code("", indentlevel)
 
