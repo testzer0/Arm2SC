@@ -341,7 +341,7 @@ def add_STLX(p, rdoubleprime, rprime, r, indentlevel=0):
 	add_indented_code(f"REGP({p},{rdoubleprime}) = 1;", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code(f"IREG({p},{rdoubleprime}) = new_cW;", indentlevel)
-	add_indented_code(f"CREG({p}, {rdoubleprime}) = new_cW;", indentlevel)
+	add_indented_code(f"CREG({p},{rdoubleprime}) = new_cW;", indentlevel)
 	add_indented_code(f"", indentlevel)
 
 def add_assign(p, r, exp, indentlevel=0):
@@ -454,7 +454,7 @@ def add_LDX(p, rprime, r, indentlevel=0):
 	add_indented_code("} else {", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = MU(REGP({p},{r}),IR({p},REGP({p},{r})));", indentlevel+1)
 	add_indented_code("}", indentlevel)
-	add_indented_code(f"DELTA(REGP({p},{r}),CR({p},REGP({p},{r}))) = {p};", indentlevel)
+	add_indented_code(f"DELTA(REGP({p},{r}),IR({p},REGP({p},{r}))) = {p};", indentlevel)
 	add_indented_code("", indentlevel)
 
 def add_LDAX(p, rprime, r, indentlevel=0):
@@ -490,7 +490,7 @@ def add_LDAX(p, rprime, r, indentlevel=0):
 	add_indented_code("} else {", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = MU(REGP({p},{r}),IR({p},REGP({p},{r})));", indentlevel+1)
 	add_indented_code("}", indentlevel)
-	add_indented_code(f"DELTA(REGP({p},{r}),CR({p},REGP({p},{r}))) = {p};", indentlevel)
+	add_indented_code(f"DELTA(REGP({p},{r}),IR({p},REGP({p},{r}))) = {p};", indentlevel)
 	add_indented_code("", indentlevel)
 
 def add_dmb_sy(p, indentlevel=0):
@@ -809,7 +809,8 @@ def parse_test(idir):
 			istmt = f"(MU({parts[0]},NCONTEXT-1) == {int(parts[1])})"
 		final_conds.append(istmt)
 
-	nregs = maxregs + 3
+	nregs = maxregs + 4 		
+	# 3 because 0-2 are reserved, and +1 because maxregs is off-by 1 [0-indexed]
 
 def add_aci_instruction(instr, indentlevel=0):
 	if (instr.op1 == "BEQ"):

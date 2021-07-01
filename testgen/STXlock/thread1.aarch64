@@ -8,7 +8,7 @@
 // lock:
 
 // read the lock variable, if no one is using it,
-// mark as being used by me (id+1)
+// mark as being used by me (id+1) [UNSAFE]
 	MOV R1,#0						;
 loop:
 	DMB SY 							;
@@ -30,7 +30,6 @@ loop:
 
 ////
 // unlock:
-	
 	DMB SY 							;
 	MOV R0,#0 						;
 	MOV R1,#0 						;

@@ -339,7 +339,7 @@ def add_STLX(p, rdoubleprime, rprime, r, indentlevel=0):
 	add_indented_code(f"REGP({p},{rdoubleprime}) = 1;", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code(f"IREG({p},{rdoubleprime}) = new_cW;", indentlevel)
-	add_indented_code(f"CREG({p}, {rdoubleprime}) = new_cW;", indentlevel)
+	add_indented_code(f"CREG({p},{rdoubleprime}) = new_cW;", indentlevel)
 	add_indented_code(f"", indentlevel)
 
 def add_assign(p, r, exp, indentlevel=0):
@@ -452,7 +452,7 @@ def add_LDX(p, rprime, r, indentlevel=0):
 	add_indented_code("} else {", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = MU(REGP({p},{r}),IR({p},REGP({p},{r})));", indentlevel+1)
 	add_indented_code("}", indentlevel)
-	add_indented_code(f"DELTA(REGP({p},{r}),CR({p},REGP({p},{r}))) = {p};", indentlevel)
+	add_indented_code(f"DELTA(REGP({p},{r}),IR({p},REGP({p},{r}))) = {p};", indentlevel)
 	add_indented_code("", indentlevel)
 
 def add_LDAX(p, rprime, r, indentlevel=0):
@@ -488,7 +488,7 @@ def add_LDAX(p, rprime, r, indentlevel=0):
 	add_indented_code("} else {", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = MU(REGP({p},{r}),IR({p},REGP({p},{r})));", indentlevel+1)
 	add_indented_code("}", indentlevel)
-	add_indented_code(f"DELTA(REGP({p},{r}),CR({p},REGP({p},{r}))) = {p};", indentlevel)
+	add_indented_code(f"DELTA(REGP({p},{r}),IR({p},REGP({p},{r}))) = {p};", indentlevel)
 	add_indented_code("", indentlevel)
 
 def add_dmb_sy(p, indentlevel=0):

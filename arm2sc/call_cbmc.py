@@ -30,4 +30,5 @@ if len(names) != 0:
 		cmd2 += f"{name}:{nunwind},"
 	cmd2 = cmd2[:-1]
 
+# cmd2 += " --trace > del.txt"
 os.system(cmd2)
