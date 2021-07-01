@@ -19,18 +19,18 @@ loop1:
 // head always points to the next-to-be-written location
 	STR R1,[R2]						;
 	STR R0,[R1]						;
-	ADD R1,#1 						;
+	ADD R1,R1,#1 					;
 	CMP R1,#3 						;
 	B.NE loop1 						;
 
 // pass 2
-	MOV R1,#0
+	MOV R1,#0 						;
 loop2:
 // leftover from previous iteration: write the value of head
 // head always points to the next-to-be-written location
 	STR R1,[R2]						;
 	STR R0,[R1]						;
-	ADD R1,#1 						;
+	ADD R1,R1,#1 					;
 	CMP R1,#3 						;
 	B.NE loop2 						;
 

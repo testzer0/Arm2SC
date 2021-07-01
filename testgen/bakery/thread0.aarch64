@@ -32,10 +32,10 @@ findmax:
 	B.GE label0						;
 	MOV R0,R2						;
 label0:
-	ADD R1,#1 						;
+	ADD R1,R1,#1 					;
 	CMP R1,#6 						;
 	B.NE findmax					;
-	ADD R0,#1 						;
+	ADD R0,R0,#1 					;
 
 // store my number, and also save it in a register
 // for use below
@@ -60,7 +60,7 @@ waitenter:
 	LDR R0,[R1]						;
 	CMP R0,#1 						;
 	B.EQ waitenter					;
-	ADD R1,#1 						;
+	ADD R1,R1,#1 					;
 	CMP R1,#3						;
 	B.NE waitenter					;
 
@@ -84,7 +84,7 @@ waitfinish:
 	CMP R1,R0 						;
 	B.LT waitfinish					;
 next:
-	ADD R1,#1 						;
+	ADD R1,R1,#1 					;
 	CMP R1,#6 						;
 	B.NE waitfinish 				;
 
@@ -96,7 +96,7 @@ next:
 
 	MOV R0,#6 						;
 	LDR R1,[R0]						;
-	ADD R1,#1 						;
+	ADD R1,R1,#1 					;
 	STR R1,[R0]						;
 
 ////

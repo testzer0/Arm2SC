@@ -48,7 +48,7 @@ endloop:
 
 	MOV R1,#3 						;
 	LDR R0,[R1] 					;
-	ADD R0,#1 						;
+	ADD R0,R0,#1 					;
 	STR R0,[R1]						;
 
 ////
