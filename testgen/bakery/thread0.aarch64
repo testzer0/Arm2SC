@@ -16,17 +16,17 @@
 // lock:
 
 // entering[0] = 1;
-
+	DMB SY 							;
 	MOV R0,#1 						;
 	MOV R1,#0 						;
 	STR R0,[R1] 					;
 
 // number[0] = 1 + max(number[0], number[1], number[2]);
 // read each in turn and swap if greater
-
 	MOV R0,#0 						;
 	MOV R1,#3 						;
 findmax:
+	DMB SY 							;
 	LDR R2,[R1]						;
 	CMP R0,R2						;
 	B.GE label0						;
@@ -39,13 +39,13 @@ label0:
 
 // store my number, and also save it in a register
 // for use below
-
+	DMB SY 							;
 	MOV R1,#3 						;
 	STR R0,[R1]						;
 	MOV R4,R0 						;
 
 // entering[0] = 0;
-
+	DMB SY 							;
 	MOV R0,#0 						;
 	MOV R1,#0 						;
 	STR R0,[R1]						;
@@ -57,6 +57,7 @@ label0:
 
 	MOV R1,#0 						;
 waitenter:
+	DMB SY 							;
 	LDR R0,[R1]						;
 	CMP R0,#1 						;
 	B.EQ waitenter					;
@@ -73,6 +74,7 @@ waitenter:
 	MOV R1,#3 						;
 
 waitfinish:
+	DMB SY 							;
 	LDR R2,[R1]						;
 	CBZ R2,next						;
 	CMP R2,R4 						;
@@ -84,6 +86,7 @@ waitfinish:
 	CMP R1,R0 						;
 	B.LT waitfinish					;
 next:
+	DMB SY 							;
 	ADD R1,R1,#1 					;
 	CMP R1,#6 						;
 	B.NE waitfinish 				;
@@ -93,7 +96,7 @@ next:
 ////
 // Critical section: read the shared var,
 // increment it and write it back.
-
+	DMB SY 							;
 	MOV R0,#6 						;
 	LDR R1,[R0]						;
 	ADD R1,R1,#1 					;
@@ -102,6 +105,7 @@ next:
 ////
 // unlock: 
 // simply write 0 into our number
+	DMB SY 							;
 	MOV R0,#0 						;
 	MOV R1,#3 						;
 	STR R0,[R1] 					;
