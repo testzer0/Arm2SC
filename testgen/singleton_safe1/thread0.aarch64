@@ -1,0 +1,56 @@
+////
+// 2 threads
+// flag[2]: an array of bools, addresses 0 through 1
+// var: the shared variable, address 2
+//
+
+// if var is already 1 then just skip everything [nolocking]
+	MOV R1,#2						;
+	LDR R0,[R1]						;
+	CBNZ R0,skip					;
+
+// ok, var = 0. So we take the lock and check again
+
+////
+// lock:
+
+// flag[0] = 1;
+	MOV R0,#1						;
+	MOV R1,#0						;
+	STR R0,[R1]						;
+	DMB SY 							;
+
+// loop while flag[1] == 1
+	MOV R1,#1 						;
+loop:
+	DMB SY 							;
+	LDR R0,[R1]						;
+	CBNZ R0,loop 					;
+
+// now we have the lock. Check again: if var=1 then just
+// unlock and finish
+	DMB SY 							;
+	MOV R1,#2						;
+	LDR R0,[R1]						;
+	CBNZ R0,unlock					;
+
+////
+// critical section: read shared variable, increment
+// it, and then write it back.
+	DMB SY 							;
+	MOV R1,#2 						;
+	LDR R0,[R1] 					;
+	ADD R0,R0,#1 					;
+	STR R0,[R1]						;
+
+////
+// unlock:
+unlock:
+	
+// flag[0] = 0;
+	DMB SY 							;
+	MOV R0,#0 						;
+	MOV R1,#0 						;
+	STR R0,[R1]						;
+
+skip:

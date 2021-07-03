@@ -1,0 +1,117 @@
+////
+// built with 3 threads in mind
+// can be easily extended to more
+// a simple test: integer increment
+// i.e.: lock, read, increment, writeback, unlock
+// check in the end whether value can be != initial + numprocs
+
+////
+// 3 threads
+// entering[3]: an array of bools, addresses 0 through 2
+// number[3]: an array of integers, addresses 3 through 5
+// var: the shared variable, address 6
+//
+
+////
+// lock:
+
+// entering[2] = 1;
+	DMB SY 							;
+	MOV R0,#1 						;
+	MOV R1,#2 						;
+	STR R0,[R1] 					;
+
+// number[2] = 1 + max(number[0], number[1], number[2]);
+// read each in turn and swap if greater
+
+	MOV R0,#0 						;
+	MOV R1,#3 						;
+findmax:
+	DMB SY 							;
+	LDR R2,[R1]						;
+	CMP R0,R2						;
+	B.GE label0						;
+	MOV R0,R2						;
+label0:
+	DMB SY 							;
+	ADD R1,R1,#1 					;
+	CMP R1,#6 						;
+	B.NE findmax					;
+	ADD R0,R0,#1 					;
+
+// store my number, and also save it in a register
+// for use below
+	DMB SY 							;
+	MOV R1,#5 						;
+	STR R0,[R1]						;
+	MOV R4,R0 						;
+
+// entering[2] = 0;
+	DMB SY 							;
+	MOV R0,#0 						;
+	MOV R1,#2 						;
+	STR R0,[R1]						;
+
+// wait for each thread to receive it's number
+// then, remember who we are
+// then wait until all threads with smaller numbers,
+// or with same numbers but smaller TIDs to finish
+
+	MOV R1,#0 						;
+waitenter:
+	DMB SY 							;
+	LDR R0,[R1]						;
+	CMP R0,#1 						;
+	B.EQ waitenter					;
+	ADD R1,R1,#1 					;
+	CMP R1,#3						;
+	B.NE waitenter					;
+
+// get my tid and number
+// store tid+3 in R0 for easy comparison
+// using just address
+// number is already in R4
+
+	MOV R0,#5 						;
+	MOV R1,#3 						;
+
+waitfinish:
+	DMB SY 							;
+	LDR R2,[R1]						;
+	CBZ R2,next						;
+	CMP R2,R4 						;
+	B.GT next 						;
+// If there is a thread ahead of us, then
+// go back to waiting...
+	B.LT waitfinish 				;
+// OK, so number is same. Is TID lesser?
+	CMP R1,R0 						;
+	B.LT waitfinish					;
+next:
+	DMB SY 							;
+	ADD R1,R1,#1 					;
+	CMP R1,#6 						;
+	B.NE waitfinish 				;
+
+// at this point we have the lock
+
+////
+// Critical section: read the shared var,
+// increment it and write it back.
+	DMB SY 							;
+	MOV R0,#6 						;
+	LDR R1,[R0]						;
+	ADD R1,R1,#1 					;
+	STR R1,[R0]						;
+
+////
+// unlock: 
+// simply write 0 into our number
+	DMB SY 							;
+	MOV R0,#0 						;
+	MOV R1,#5 						;
+	STR R0,[R1] 					;
+
+
+////
+//	done!	

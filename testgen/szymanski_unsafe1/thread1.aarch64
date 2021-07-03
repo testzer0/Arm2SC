@@ -1,0 +1,79 @@
+////
+// 2 threads
+// flag[2]: an array of bools, addresses 0 through 1
+// var: a shared variable, address 2
+//
+
+////
+// lock:
+
+// flag[1] = 1
+	MOV R1,#1 						;
+	MOV R0,#1 						;
+	STR R0,[R1]						;
+
+// wait until flag[0] < 3
+	MOV R1,#0 						;
+loop1:
+	LDR R0,[R1]						;
+	CMP R0,#3						;
+	B.GE loop1 						;
+
+// flag[1] = 3
+	MOV R0,#3						;
+	MOV R1,#1 						;
+	STR R0,[R1]						;
+
+// if flag[0] == 1 then do the following, else skip
+	MOV R1,#0 						;
+	LDR R0,[R1]						;
+	CMP R0,#1 						;
+	B.NE skip 						;
+
+// ok, so flag[0] == 1. Set flag[1] = 2 first
+	MOV R0,#2 						;
+	MOV R1,#1 						;
+	STR R0,[R1]						;
+// now wait until flag[0] == 4.
+	MOV R1,#0 						;
+loop2:
+	LDR R0,[R1]						;
+	CMP R0,#4 						;
+	B.NE loop2 						;
+
+skip: 				
+// set flag[1] = 4
+	MOV R0,#4 						;
+	MOV R1,#1 						;
+	STR R0,[R1]						;
+// finally, wait until flag[0] < 2
+	MOV R1,#0 						;
+loop3:
+	LDR R0,[R1]						;
+	CMP R0,#2 						;
+	B.GE loop3 						;
+
+////
+// critical section:
+	MOV R1,#2 						;
+	LDR R0,[R1]						;
+	ADD R0,R0,#1 					;
+	STR R0,[R1]						;
+
+////
+// unlock:
+
+// wait until flag[0] is either 2 or 3
+	MOV R1,#0 						;
+loop4:
+	LDR R0,[R1]						;
+	CMP R0,#3 						;
+	B.EQ end 						;
+	CMP R0,#2 						;
+	B.NE loop4 						;
+
+end:
+// finally set flag[1] = 0
+	MOV R1,#0 						;
+	MOV R0,#1 						;
+	STR R0,[R1]						;

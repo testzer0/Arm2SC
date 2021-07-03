@@ -1,0 +1,17 @@
+////
+// 3 threads
+// var: the shared variable, address 1
+//
+
+////
+// critical section: read shared variable, increment
+// it, and then write it back.
+// HOWEVER, only writeback IF no one else touched the
+// variable during this time
+
+	MOV R1,#0 						;
+loop:
+	LDXR R0,[R1] 					;
+	ADD R0,R0,#1 					;
+	STXR R2,R0,[R1]					;
+	CBNZ R2,loop 					;

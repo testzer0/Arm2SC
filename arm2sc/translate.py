@@ -120,7 +120,7 @@ def add_preamble(indentlevel=0):
 	add_indented_code("int iReg[NPROC*NREGS], cReg[NPROC*NREGS];", indentlevel)
 	add_indented_code("int cDY[NPROC], cDS[NPROC], cDL[NPROC], cISB[NPROC], iAddr[NPROC];", indentlevel)
 	add_indented_code("int ctrl[NPROC], active[NCONTEXT];", indentlevel)
-	add_indented_code("int old_cDY, old_cW, old_cR, new_cW;", indentlevel)
+	add_indented_code("int old_cDY, old_cW, old_cR, new_cW, new_iReg, new_cReg;", indentlevel)
 	add_indented_code("", indentlevel)
 
 	# define macros for easy access
@@ -345,17 +345,19 @@ def add_STLX(p, rdoubleprime, rprime, r, indentlevel=0):
 def add_assign(p, r, exp, indentlevel=0):
 	add_indented_code("/* assign */", indentlevel)
 	add_indented_code("// Guess", indentlevel)
-	add_indented_code(f"IREG({p},{r}) = get_rng(0,NCONTEXT-1);", indentlevel)
-	add_indented_code(f"CREG({p},{r}) = get_rng(0,NCONTEXT-1);", indentlevel)
+	add_indented_code(f"new_iReg = get_rng(0,NCONTEXT-1);", indentlevel)
+	add_indented_code(f"new_cReg = get_rng(0,NCONTEXT-1);", indentlevel)
 	add_indented_code("// Check", indentlevel)
-	add_indented_code(f"ASSUME(active[IREG({p},{r})] == {p});", indentlevel)
+	add_indented_code(f"ASSUME(active[new_iReg] == {p});", indentlevel)
 	for rprime in exp.get_regs():
-		add_indented_code(f"ASSUME(IREG({p},{r}) >= IREG({p},{rprime}));", indentlevel)
-	add_indented_code(f"ASSUME(active[CREG({p},{r})] == {p});", indentlevel)
-	add_indented_code(f"ASSUME(CREG({p},{r}) >= max(ctrl[{p}],IREG({p},{r})));", indentlevel)
+		add_indented_code(f"ASSUME(new_iReg >= IREG({p},{rprime}));", indentlevel)
+	add_indented_code(f"ASSUME(active[new_cReg] == {p});", indentlevel)
+	add_indented_code(f"ASSUME(new_cReg >= max(ctrl[{p}],new_iReg));", indentlevel)
 	for rprime in exp.get_regs():
-		add_indented_code(f"ASSUME(CREG({p},{r}) >= CREG({p},{rprime}));", indentlevel)
+		add_indented_code(f"ASSUME(new_cReg >= CREG({p},{rprime}));", indentlevel)
 	add_indented_code("// Update", indentlevel)
+	add_indented_code(f"IREG({p},{r}) = new_iReg;", indentlevel)
+	add_indented_code(f"CREG({p},{r}) = new_cReg;", indentlevel)
 	add_indented_code(f"REGP({p},{r}) = " + exp.get_exp(p) + ";", indentlevel)
 	add_indented_code("", indentlevel)
 

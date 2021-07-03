@@ -1,0 +1,6 @@
+// 3 threads
+// var: the shared variable, address 0
+//
+
+// check whether the shared variable can be != 3
+not 0 : 3

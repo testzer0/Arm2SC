@@ -3,7 +3,13 @@ import subprocess
 import sys
 
 lines = ["emptyline"]
-file = os.path.join(os.getcwd(),'arm2sc/translated.c')
+if len(sys.argv) == 1:
+	file = os.path.join(os.getcwd(),'arm2sc/translated.c')
+	fname = "translated.c"
+else:
+	file = os.path.join(os.getcwd(),'arm2sc/'+sys.argv[1])
+	fname = sys.argv[1]
+
 with open(file) as f:
 	for line in f.readlines():
 		lines.append(line)
@@ -11,7 +17,7 @@ with open(file) as f:
 names = []
 nunwind = 5
 
-cmd1 = "cbmc arm2sc/translated.c --show-loops"
+cmd1 = f"cbmc arm2sc/{fname} --show-loops"
 output = subprocess.check_output(cmd1, shell=True).decode("utf-8").split('\n')
 for i in range(len(output)):
 	if output[i].startswith("Loop"):
@@ -23,7 +29,7 @@ for i in range(len(output)):
 		if line[0] == "goto":
 			names.append(name)
 
-cmd2 = "cbmc arm2sc/translated.c"
+cmd2 = f"cbmc arm2sc/{fname}"
 if len(names) != 0:
 	cmd2 += " --unwindset "
 	for name in names:

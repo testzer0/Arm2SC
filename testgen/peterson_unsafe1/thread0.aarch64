@@ -1,0 +1,45 @@
+////
+// 2 threads
+// flag[2]: an array of bools, addresses 0 through 1
+// turn: an integer, address 2
+// var: the shared variable, address 3
+//
+
+////
+// lock:
+
+// flag[0] = 1;
+	MOV R0,#1 						;
+	MOV R1,#0 						;
+	STR R0,[R1]						;
+// turn = 1;
+	MOV R1,#2 						;
+	STR R0,[R1]						;
+
+// while (flag[1] == 1 && turn == 1) wait
+loop:
+	MOV R1,#1 						;
+	LDR R0,[R1] 					;
+	CBZ R0,endloop 					;
+	MOV R1,#2 						;
+	LDR R0,[R1]						;
+	CBNZ R0,loop 					;
+endloop:
+// we have the lock
+
+////
+// critical section: read shared variable, increment
+// it, and then write it back.
+
+	MOV R1,#3 						;
+	LDR R0,[R1] 					;
+	ADD R0,R0,#1 					;
+	STR R0,[R1]						;
+
+////
+// unlock:
+
+// flag[0] = 0;
+	MOV R1,#0 						;
+	MOV R0,#0 						;
+	STR R0,[R1]						;

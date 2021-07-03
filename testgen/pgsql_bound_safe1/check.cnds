@@ -1,0 +1,8 @@
+// 2 threads
+// latch[2]: an array of bools, addresses 0 through 1
+// flag[2]: an array of bools, addresses 2 through 3
+// wrong: whether something went wrong, address 4
+//
+
+// check whether the shared variable can be != 0
+not 4 : 0

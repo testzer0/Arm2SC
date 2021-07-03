@@ -1,0 +1,34 @@
+////
+// 2 threads
+// lockvar: the lock variable, address 0
+// var: the shared variable, address 1
+//
+
+////
+// lock:
+
+// read the lock variable, if no one is using it,
+// mark as being used by me (id+1) [UNSAFE]
+	MOV R1,#0						;
+loop:
+	LDXR R0,[R1]					;
+	CBNZ R0,loop					;
+	MOV R0,#2 						;
+	STXR R2,R0,[R1]					;
+	CBNZ R2,loop 					;
+
+////
+// critical section: read shared variable, increment
+// it, and then write it back.
+
+	MOV R1,#1 						;
+	LDR R0,[R1] 					;
+	ADD R0,R0,#1 					;
+	STR R0,[R1]						;
+
+////
+// unlock:
+	
+	MOV R0,#0 						;
+	MOV R1,#0 						;
+	STR R0,[R1]						;

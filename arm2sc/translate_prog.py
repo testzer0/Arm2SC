@@ -122,7 +122,7 @@ def add_preamble(indentlevel=0):
 	add_indented_code("int iReg[NPROC*NREGS], cReg[NPROC*NREGS];", indentlevel)
 	add_indented_code("int cDY[NPROC], cDS[NPROC], cDL[NPROC], cISB[NPROC], iAddr[NPROC];", indentlevel)
 	add_indented_code("int ctrl[NPROC], active[NCONTEXT];", indentlevel)
-	add_indented_code("int old_cDY, old_cW, old_cR, new_cW;", indentlevel)
+	add_indented_code("int old_cDY, old_cW, old_cR, new_cW, new_iReg, new_cReg;", indentlevel)
 	add_indented_code("", indentlevel)
 
 	# define macros for easy access
@@ -347,17 +347,19 @@ def add_STLX(p, rdoubleprime, rprime, r, indentlevel=0):
 def add_assign(p, r, exp, indentlevel=0):
 	add_indented_code("/* assign */", indentlevel)
 	add_indented_code("// Guess", indentlevel)
-	add_indented_code(f"IREG({p},{r}) = get_rng(0,NCONTEXT-1);", indentlevel)
-	add_indented_code(f"CREG({p},{r}) = get_rng(0,NCONTEXT-1);", indentlevel)
+	add_indented_code(f"new_iReg = get_rng(0,NCONTEXT-1);", indentlevel)
+	add_indented_code(f"new_cReg = get_rng(0,NCONTEXT-1);", indentlevel)
 	add_indented_code("// Check", indentlevel)
-	add_indented_code(f"ASSUME(active[IREG({p},{r})] == {p});", indentlevel)
+	add_indented_code(f"ASSUME(active[new_iReg] == {p});", indentlevel)
 	for rprime in exp.get_regs():
-		add_indented_code(f"ASSUME(IREG({p},{r}) >= IREG({p},{rprime}));", indentlevel)
-	add_indented_code(f"ASSUME(active[CREG({p},{r})] == {p});", indentlevel)
-	add_indented_code(f"ASSUME(CREG({p},{r}) >= max(ctrl[{p}],IREG({p},{r})));", indentlevel)
+		add_indented_code(f"ASSUME(new_iReg >= IREG({p},{rprime}));", indentlevel)
+	add_indented_code(f"ASSUME(active[new_cReg] == {p});", indentlevel)
+	add_indented_code(f"ASSUME(new_cReg >= max(ctrl[{p}],new_iReg));", indentlevel)
 	for rprime in exp.get_regs():
-		add_indented_code(f"ASSUME(CREG({p},{r}) >= CREG({p},{rprime}));", indentlevel)
+		add_indented_code(f"ASSUME(new_cReg >= CREG({p},{rprime}));", indentlevel)
 	add_indented_code("// Update", indentlevel)
+	add_indented_code(f"IREG({p},{r}) = new_iReg;", indentlevel)
+	add_indented_code(f"CREG({p},{r}) = new_cReg;", indentlevel)
 	add_indented_code(f"REGP({p},{r}) = " + exp.get_exp(p) + ";", indentlevel)
 	add_indented_code("", indentlevel)
 
@@ -780,6 +782,23 @@ def parse_test(idir):
 				exp = Expression(type1, operands[1], type2, operands[2], '-')
 				stmt = Instruction(proc, InstrType.ASSIGN.value, operands[0], exp)
 				incode[proc].append(stmt)
+			elif operation == "MUL":
+				operands[0] = register(int(operands[0][1:]))
+				if operands[1][0] == '#':
+					type1 = 1
+					operands[1] = int(operands[1][1:])
+				else:
+					type1 = 0
+					operands[1] = register(int(operands[1][1:]))
+				if operands[2][0] == '#':
+					type2 = 1
+					operands[2] = int(operands[2][1:])
+				else:
+					type2 = 0
+					operands[2] = register(int(operands[2][1:]))
+				exp = Expression(type1, operands[1], type2, operands[2], '*')
+				stmt = Instruction(proc, InstrType.ASSIGN.value, operands[0], exp)
+				incode[proc].append(stmt)
 			elif operation == "CBZ":
 				operands[0] = register(int(operands[0][1:]))
 				# append proc before label name, to make the label unique
@@ -797,16 +816,26 @@ def parse_test(idir):
 	check = parse_file_without_comments_or_empty_lines('check.cnds', idir)
 	for line in check:
 		contra = False
+		geq = False
 		if line.startswith("not"):
 			contra = True
+			line = line[3:].strip()
+		if line.startswith("geq"):
+			geq = True
 			line = line[3:].strip()
 		parts = line.split(':')
 		parts[0] = int(parts[0].strip())
 		parts[1] = int(parts[1].strip())
 		if contra:
-			istmt = f"(MU({parts[0]},NCONTEXT-1) != {int(parts[1])})"
+			if geq:
+				istmt = f"(MU({parts[0]},NCONTEXT-1) < {int(parts[1])})"
+			else:
+				istmt = f"(MU({parts[0]},NCONTEXT-1) != {int(parts[1])})"
 		else:
-			istmt = f"(MU({parts[0]},NCONTEXT-1) == {int(parts[1])})"
+			if geq:
+				istmt = f"(MU({parts[0]},NCONTEXT-1) >= {int(parts[1])})"
+			else:
+				istmt = f"(MU({parts[0]},NCONTEXT-1) == {int(parts[1])})"
 		final_conds.append(istmt)
 
 	nregs = maxregs + 4 		

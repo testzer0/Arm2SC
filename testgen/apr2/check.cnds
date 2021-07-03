@@ -1,0 +1,5 @@
+// 3 threads
+// var: the shared variable, address 0
+//
+
+not 0 : 3

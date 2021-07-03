@@ -1,0 +1,19 @@
+// 2 threads
+// i : address 0
+// j : address 1
+//
+
+// read i,j and write i+j to i
+// do this 5 times
+
+	MOV R1,#0						;
+	MOV R2,#1						;
+	MOV R3,#0 						;
+loop:
+	LDR R0,[R1]						;
+	LDR R4,[R2]						;
+	ADD R0,R0,R4 					;
+	STR R0,[R2]						;
+	ADD R3,R3,#1 					;
+	CMP R3,#5 						;
+	B.NE loop						;

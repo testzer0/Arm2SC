@@ -1,0 +1,60 @@
+////
+// 2 threads
+// wants_to_enter[2]: an array of bools, addresses 0 through 1
+// turn: an integer, address 2
+// var: the shared variable, address 3
+//
+
+////
+// lock:
+
+loophead:
+// wants_to_enter[0] = 1;
+	MOV R0,#1						;
+	MOV R1,#0 						;
+	STR R0,[R1]						;
+// while wants_to_enter[1] {...}
+loop:
+// does the other want to enter?
+	DMB SY 							;
+	MOV R1,#1 						;
+	LDR R0,[R1] 					;
+	CBZ R0,endloop					;
+
+	MOV R1,#2						;
+	LDR R0,[R1]						;
+// if its my turn, wait for the other to stop trying...
+	CBZ R0,loop						;
+// set wants_to_enter[0] to 0, and then wait until my turn
+	MOV R1,#0 						;
+	MOV R0,#0 						;
+	STR R0,[R1] 					;
+// while not my turn, wait
+wait:
+	DMB SY 							;
+	MOV R1,#2 						;
+	LDR R0,[R1]						;
+	CBNZ R0,wait 					;
+// OK, my turn has arrived
+	CBZ R0,loophead 				;
+endloop:
+// We have the lock!
+
+////
+// critical section: read shared variable, increment
+// it, and then write it back.
+	DMB SY 							;
+	MOV R1,#3 						;
+	LDR R0,[R1] 					;
+	ADD R0,R0,#1 					;
+	STR R0,[R1]						;
+
+////
+// unlock: set turn to the other and our wants_to_enter
+// to 0.
+	MOV R0,#1 						;
+	MOV R1,#2 						;
+	STR R0,[R1] 					;
+	MOV R0,#0 						;
+	MOV R1,#0 						;
+	STR R0,[R1]						;

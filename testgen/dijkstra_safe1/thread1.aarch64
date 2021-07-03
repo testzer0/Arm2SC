@@ -1,0 +1,65 @@
+////
+// 2 threads
+// flag[2]: an array of ints, addresses 0 through 1
+// turn: integer, address 2
+// var: the shared variable, address 3
+//
+
+////
+// lock:
+
+begin:
+	DMB SY 							;
+// phase 1, flag[1] = 1;
+	MOV R0,#1						;
+	MOV R1,#1						;
+	STR R0,[R1]						;
+// while not my turn {...}
+	DMB SY 							;
+	MOV R1,#2 						;
+	LDR R0,[R1]						;
+	CBNZ R0,endloop 					;
+// if the flag of the other thread is not set 
+// to 1 or 2, steal the turn from it.
+// for now, store whose turn it is in a 
+// separate register
+	MOV R2,R0 						;
+	MOV R1,#0 						;
+loop:
+	DMB SY 							;
+	LDR R0,[R1]						;
+	CBNZ R0,loop					;
+// the flag is not set: steal the turn
+	MOV R2,#1 						;
+	MOV R1,#2 						;
+	STR R2,[R1]						;
+endloop:
+	DMB SY 							;
+// entering phase 2, so set flag = 2
+	MOV R0,#2 						;
+	MOV R1,#1 						;
+	STR R0,[R1]						;
+// has the other thread somehow reached phase 2?
+	DMB SY 							;
+	MOV R1,#0 						;
+	LDR R0,[R1]						;
+	CMP R0,#2 						;
+// If yes, restart from phase 1
+	B.EQ begin 						;
+
+////
+// critical section: read shared variable, increment
+// it, and then write it back.
+	DMB SY 							;
+	MOV R1,#3 						;
+	LDR R0,[R1] 					;
+	ADD R0,R0,#1 					;
+	STR R0,[R1]						;
+
+////
+// unlock:
+	DMB SY 							;
+// flag[0] = 0;
+	MOV R0,#0 						;
+	MOV R1,#1 						;
+	STR R0,[R1]						;

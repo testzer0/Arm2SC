@@ -1,0 +1,58 @@
+////
+// 2 threads
+// latch[2]: an array of bools, addresses 0 through 1
+// flag[2]: an array of bools, addresses 2 through 3
+// wrong: the shared variable, address 4
+//
+
+////
+// repeat:
+	
+	MOV R4,#0 						;
+repeat:
+// wait until latch[0] == 1
+	MOV R1,#0						;
+wait:
+	LDR R0,[R1]						;
+	CBZ R0,wait						;
+
+// assert (!latch[0] || flag[0])
+// just set a variable if neither of the assertions succeeds
+	DMB SY 							;
+	LDR R0,[R1]						;
+	CBZ R0,success					;
+	MOV R2,#2						;
+	LDR R3,[R2]						;
+	CBNZ R3,success					;
+// assertion failed: store that info
+	MOV R0,#1 						;
+	MOV R1,#4						;
+	STR R0,[R1]						;
+
+success:
+	DMB SY 							;
+// latch[0] = 0
+	MOV R0,#0 						;
+	MOV R1,#0 						;
+	STR R0,[R1]						;
+// execute code below only if flag[0] = 1
+	DMB SY 							;
+	MOV R1,#2 						;
+	LDR R0,[R1]						;
+	CBZ R0,tail						;
+// set flag[0] = 0 and flag[1] = 1
+	DMB SY 							;
+	MOV R2,#0 						;
+	STR R2,[R1]						;
+	MOV R2,#1 						;
+	MOV R1,#3 						;
+	STR R2,[R1]						;
+	DMB SY 							;
+// set latch[1] = 1
+	MOV R1,#1 						;
+	STR R2,[R1]						;
+// tail
+tail:
+	ADD R4,R4,#1 					;
+	CMP R4,#4 						;
+	B.NE repeat 					;

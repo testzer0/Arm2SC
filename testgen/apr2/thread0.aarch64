@@ -1,0 +1,37 @@
+////
+// 3 threads
+// var: the shared variable, address 0
+//
+
+// atomic inc, atomic add 2, atomic dec, atomic dec
+// do each in a LDXR+STXR loop
+
+	MOV R1,#0 						;
+
+// inc
+loop1:
+	LDXR R0,[R1] 					;
+	ADD R0,R0,#1 					;
+	STXR R2,R0,[R1]					;
+	CBNZ R2,loop1 					;
+
+// +2
+loop2:
+	LDXR R0,[R1] 					;
+	ADD R0,R0,#2 					;
+	STXR R2,R0,[R1]					;
+	CBNZ R2,loop2 					;
+
+// dec
+loop3:
+	LDXR R0,[R1] 					;
+	SUB R0,R0,#1 					;
+	STXR R2,R0,[R1]					;
+	CBNZ R2,loop3 					;
+
+// dec
+loop4:
+	LDXR R0,[R1] 					;
+	SUB R0,R0,#1 					;
+	STXR R2,R0,[R1]					;
+	CBNZ R2,loop4 					;

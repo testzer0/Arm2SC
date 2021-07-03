@@ -1,0 +1,13 @@
+////
+// 3 threads
+// latch[2]: an array of bools, addresses 0 through 1
+// flag[2]: an array of bools, addresses 2 through 3
+// wrong: whether something went wrong, address 4
+// stop: signal to stop, address 5
+//
+
+// simply raise the stop signal at some point
+
+	MOV R0,#1						;
+	MOV R1,#5 						;
+	STR R0,[R1]						;
