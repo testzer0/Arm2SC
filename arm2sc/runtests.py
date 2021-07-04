@@ -3,10 +3,10 @@ import subprocess
 import sys
 
 if len(sys.argv) == 1:
-	infile = os.path.join(os.getcwd(), 'expected.txt')
+	infile = os.path.join(os.getcwd(), 'expected_results/expected.txt')
 	outfile = os.path.join(os.getcwd(), 'arm2sc/output.txt')
 else:
-	infile = os.path.join(os.getcwd(), 'expected_others.txt')
+	infile = os.path.join(os.getcwd(), 'expected_results/expected_others.txt')
 	outfile = os.path.join(os.getcwd(), 'arm2sc/output_other.txt')
 
 resultdict = {}

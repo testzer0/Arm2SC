@@ -10,9 +10,9 @@ if len(sys.argv) > 1:
 	dirname = sys.argv[1]
 else:
 	testdir = os.path.join(os.getcwd(), 'other_cctests')
-	donefile = os.path.join(os.getcwd(),'results_others.txt')
-	alltestfile = os.path.join(os.getcwd(),'expected_others.txt')
-	blacklistfile = os.path.join(os.getcwd(), 'blacklist_others.txt')
+	donefile = os.path.join(os.getcwd(),'results/results_others.txt')
+	alltestfile = os.path.join(os.getcwd(),'expected_results/expected_others.txt')
+	blacklistfile = os.path.join(os.getcwd(), 'blacklists/blacklist_others.txt')
 	dirname = 'other_cctests'
 
 

@@ -6,7 +6,7 @@ listdir = os.path.join(os.getcwd(), 'tests')
 
 blacklist = set()
 
-infile = os.path.join(os.getcwd(), 'blacklist.txt')
+infile = os.path.join(os.getcwd(), 'blacklists/blacklist.txt')
 with open(infile) as f:
 	for x in f.readlines():
 		blacklist.add(x.strip())
@@ -34,6 +34,6 @@ for file in os.listdir(listdir):
 		if file not in blacklist:
 			runtest(fname)
 
-file = open(os.path.join(os.getcwd(),"results.txt"), 'w+')
+file = open(os.path.join(os.getcwd(),"results/results.txt"), 'w+')
 for key,value in resultdict.items():
 	file.write(key + ".litmus : " + value + "\n")

@@ -1,0 +1,11 @@
+// 4 threads
+// thread 0,1 -> worker threads
+// thread 2 -> checking thread
+// thread 3 -> signalling thread
+// array[2]: an array of ints, addresses 0 and 1
+// index: current index, address 2
+// signal[3]: an array of bools, addresses 3 through 5
+// wrong: set if checker finds a mistake, address 6
+//
+
+not 6 : 0

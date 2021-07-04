@@ -7,12 +7,12 @@ listdir = os.path.join(os.getcwd(), 'other_tests')
 
 blacklist = set()
 
-infile = os.path.join(os.getcwd(), 'blacklist_others.txt')
+infile = os.path.join(os.getcwd(), 'blacklists/blacklist_others.txt')
 with open(infile) as f:
 	for x in f.readlines():
 		blacklist.add(x.strip())
 
-logfile = os.path.join(os.getcwd(), 'log.txt')		
+logfile = os.path.join(os.getcwd(), 'ignore/log.txt')		
 
 resultdict = {}
 

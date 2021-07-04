@@ -32,6 +32,7 @@ findmax:
 	B.GE label0						;
 	MOV R0,R2						;
 label0:
+	DMB SY 							;
 	ADD R1,R1,#1 					;
 	CMP R1,#6 						;
 	B.NE findmax					;

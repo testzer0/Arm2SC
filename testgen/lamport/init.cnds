@@ -1,13 +1,13 @@
-// 2 threads
-// flag[2]: an array of bools, addresses 0 through 1
-// ctr[2]: an array of integers, addresses 2 through 3
-// var: the shared variable, address 4
+// 3 threads
+// entering[3]: an array of bools, addresses 0 through 2
+// number[3]: an array of integers, addresses 3 through 5
+// var: the shared variable, address 6
 //
 // number of processes
-2
+3
 
 // number of memory locations
-5
+6
 
 // contents:
 0 : 0
@@ -15,3 +15,4 @@
 2 : 0
 3 : 0
 4 : 0
+5 : 0

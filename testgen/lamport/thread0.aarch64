@@ -1,0 +1,93 @@
+////
+// 2 threads
+// flag[2]: an array of bools, addresses 0 through 1
+// x: address 2
+// y: address 3
+// var: the shared variable, address 4
+//
+
+////
+// lock:
+
+repeat:
+// set flag[0] and x to 1
+	MOV R0,#1 						;
+	MOV R1,#0 						;
+	STR R0,[R1]						;
+	MOV R1,#2 						;
+	STR R0,[R1]						;
+
+	DMB SY 							;
+
+// if y != 0, set flag[0] to 0 and wait for
+// y to become 0; after this retry
+	MOV R1,#3 						;
+	LDR R0,[R1] 					;
+	CBZ R0,skip 					;
+
+	MOV R1,#0 						;
+	MOV R0,#0 						;
+	STR R0,[R1]						;
+	MOV R1,#3 						;
+	DMB SY 							;
+wait:
+	LDR R0,[R1]						;
+	CBNZ R0,wait 					;
+	CBZ R0,repeat 					;
+
+skip:
+// set y = 1
+	MOV R0,#1 						;
+	STR R0,[R1]						;
+
+	DMB SY 							;
+
+// if x == 1 we have got the lock;
+// else do the cleanup below before retrying
+	MOV R1,#2 						;
+	LDR R0,[R1]						;
+	CMP R0,#1 						;
+	B.EQ locked 					;
+
+// set flag[0] to 0
+	MOV R1,#0 						;
+	MOV R0,#0 						;
+	STR R0,[R1]						;
+// wait until flag[1] == 0
+	DMB SY							;
+	MOV R1,#1 						;
+waitflag:
+	LDR R0,[R1]						;
+	CBNZ R0,waitflag 				;
+
+// now, if y != 1, then wait until
+// y == 0 (it can be 2, so we may have
+// to wait).
+	MOV R1,#3 						;
+	LDR R0,[R1]						;
+	CMP R0,#1 						;
+	B.EQ repeat 					;
+waitctr:
+	LDR R0,[R1]						;
+	CBNZ R0,waitctr 				;
+	CBZ R0,repeat 					;
+
+locked:
+	DMB SY 							;
+////
+// critical section
+	MOV R1,#4 						;
+	LDR R0,[R1]						;
+	ADD R0,R0,#1 					;
+	STR R0,[R1]						;
+
+////
+// unlock:
+
+// set flag[0] and y to 0
+	DMB SY 							;
+	MOV R0,#0 						;
+	MOV R1,#0 						;
+	STR R0,[R1]						;
+	MOV R1,#3 						;
+	STR R0,[R1]						;

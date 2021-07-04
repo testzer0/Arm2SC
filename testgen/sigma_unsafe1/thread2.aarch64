@@ -1,0 +1,51 @@
+////
+// 4 threads
+// thread 0,1 -> worker threads
+// thread 2 -> checking thread
+// thread 3 -> signalling thread
+// array[2]: an array of ints, addresses 0 and 1
+// index: current index, address 2
+// signal[3]: an array of bools, addresses 3 through 5
+// wrong: set if checker finds a mistake, address 6
+//
+
+// wake up thread 0
+	MOV R0,#1 						;
+	MOV R1,#3 						;
+	STR R0,[R1]						;
+
+	DMB SY 							;
+
+// increment the index
+	MOV R1,#2 						;
+	LDR R0,[R1]						;
+	ADD R0,R0,#1 					;
+	STR R0,[R1]						;
+
+	DMB SY 							;
+
+// wake up thread 1 now
+	MOV R0,#1 						;
+	MOV R1,#4 						;
+	STR R0,[R1]						;
+
+	DMB SY 							;
+
+// now wait for both threads to finish
+// signalled by reading 0 from the two signals
+	MOV R1,#3 						;
+loop1:
+	LDR R0,[R1]						;
+	CBNZ R0,loop1 					;
+
+	MOV R1,#4 						;
+loop2:
+	LDR R0,[R1]						;
+	CBNZ R0,loop1					;
+
+	DMB SY 							;
+
+// both threads have finished: wake up the checker
+	MOV R1,#5 						;
+	MOV R0,#1 						;
+	STR R0,[R1]						;

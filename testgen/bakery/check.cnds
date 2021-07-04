@@ -3,10 +3,5 @@
 // number[3]: an array of integers, addresses 3 through 5
 // var: the shared variable, address 6
 //
-// check whether the shared variable can be = 2
-// If the locking was imperfect, one way in which it can be achieved is:
-// 1 gets lock -> 1 reads 0 -> 0 gets lock -> 0 reads 0 -> 1 writes 1 -> 0 writes 1
-// -> 1 releases lock -> 0 releases lock -> 2 gets lock -> 2 reads 1 -> 2 writes 2
-// -> 2 releases lock.
-
-6 : 2
+// check whether the shared variable can be != 3
+not 6 : 3

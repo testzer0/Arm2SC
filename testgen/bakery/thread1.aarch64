@@ -23,7 +23,6 @@
 
 // number[1] = 1 + max(number[0], number[1], number[2]);
 // read each in turn and swap if greater
-
 	MOV R0,#0 						;
 	MOV R1,#3 						;
 findmax:
