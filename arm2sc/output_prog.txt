@@ -32,4 +32,7 @@ szymanski_safe1 : GOT safe/unsatisfiable 		in 4.328417334000733 seconds
 szymanski_unsafe1 : GOT unsafe/satisfiable 		in 4.009941912000613 seconds
 wronglock1_unsafe1 : GOT unsafe/satisfiable 		in 0.5580183260008198 seconds
 wrongpc1_unsafe1 : GOT unsafe/satisfiable 		in 16.083225215999846 seconds
+queue_safe1 : GOT safe/unsatisfiable 		in 153.06411183599994 seconds
+queue_unsafe1 : GOT unsafe/satisfiable 		in 75.82598963499913 seconds
+gcd_unsafe1 : GOT unsafe/satisfiable		in 433.374 seconds [manually entered]
 apr2 : timeout [manually entered]

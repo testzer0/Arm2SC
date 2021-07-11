@@ -1,0 +1,21 @@
+// 3 threads
+// queue[3]: the wait-queue, addresses 0 through 2 [9 = empty]
+// var: shared variable, address 3
+// lock: the lock protecting the queue, address 4
+// doorbell[3]: the wakeup call, addresses 5 through 7
+//
+// number of processes
+3
+
+// number of memory locations
+5
+
+// contents:
+0 : 9
+1 : 9
+2 : 9
+3 : 0
+4 : 0
+5 : 0
+6 : 0
+7 : 0

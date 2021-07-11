@@ -1,6 +1,7 @@
 // 2 threads
 // flag[2]: an array of bools, addresses 0 through 1
-// ctr[2]: an array of integers, addresses 2 through 3
+// x: address 2
+// y: address 3
 // var: the shared variable, address 4
 //
 

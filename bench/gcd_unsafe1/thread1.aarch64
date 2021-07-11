@@ -1,0 +1,51 @@
+////
+// 2 threads
+// a: first number, address 0 
+// b: second number, address 1
+// lock: the lock variable, owners'id+1 stored in it, address 2
+//
+
+// As thread 1, we should only update b
+// Do the following in a loop as long as a != b
+// Acquire the lock, read a and b
+// replace b by |a-b|
+// release the lock
+
+repeat:
+	MOV R1,#2						;
+	MOV R2,#2 						;
+trylock:
+	LDXR R0,[R1]					;
+	CBNZ R0,trylock					;
+	STXR R3,R2,[R1]					;
+	CBNZ R3,trylock					;
+
+// we have the lock
+// read a,b;
+	MOV R2,#0 						;
+	MOV R3,#1 						;
+	LDR R0,[R2]						;
+	LDR R1,[R3]						;
+
+// compare and update
+	CMP R0,R1						;
+	B.EQ done 						;
+	B.GT greater					;
+	SUB R2,R1,R0					;
+	B skip							;
+greater:
+	SUB R2,R0,R1					;
+skip:
+	MOV R3,#1 						;
+	STR R2,[R3]						;
+// unlock and repeat
+	MOV R0,#0 						;
+	MOV R1,#2 						;
+	STR R0,[R1]						;
+	B repeat						;
+
+done:
+// unlock
+	MOV R0,#0 						;
+	MOV R1,#2 						;
+	STR R0,[R1]						;

@@ -10,7 +10,8 @@ tests = ["burns_safe1", "burns_unsafe1", "burns_unsafe2", "burns_unsafe3", "burn
 		 "peterson_safe1", "peterson_unsafe1", "peterson_unsafe2", "pgsql_safe1", "pgsql_unsafe1",  \
 		 "pgsql_bound_safe1", "pagesql_bound_unsafe1", "singleton_safe1", "sigma_unsafe1",  \
 		 "STXlock_safe1", "STXlock_unsafe1", "STXlock_unsafe2", "STXlock_unsafe3",  \
-		 "szymanski_safe1", "szymanski_unsafe1", "wronglock1_unsafe1", "wrongpc1_unsafe1", "apr2"]
+		 "szymanski_safe1", "szymanski_unsafe1", "wronglock1_unsafe1", "wrongpc1_unsafe1",  \
+		 "queue_safe1", "queue_unsafe1", "apr2"]
 
 resultdict = {}
 timedict = {}
@@ -38,9 +39,12 @@ for test in tests:
 		resultdict[test] = "unsafe/satisfiable"
 	else:
 		resultdict[test] = "safe/unsatisfiable"
-	print(f"{test} : GOT {resultdict[test]} \t\tin {timedict[test]} seconds")
+	st = f"{test} : GOT {resultdict[test]}"
+	st = st.ljust(50,'.') + f"in {timedict[test]} seconds"
+	print(st)
 
 with open(outfile, 'w+') as f:
 	for test, result in resultdict.items():
-		stmt = f"{test} : {result} \t\t in {timedict[test]} seconds\n"
+		stmt = f"{test} : GOT {resultdict[test]}"
+		stmt = stmt.ljust(50,'.') + f"in {timedict[test]} seconds"
 		f.write(stmt)

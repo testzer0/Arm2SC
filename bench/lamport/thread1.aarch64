@@ -17,7 +17,6 @@ repeat:
 	MOV R0,#2 						;
 	MOV R1,#2 						;
 	STR R0,[R1]						;
-
 	DMB SY 							;
 
 // if y != 0, set flag[1] to 0 and wait for
@@ -26,6 +25,7 @@ repeat:
 	LDR R0,[R1] 					;
 	CBZ R0,skip 					;
 
+	DMB SY 							;
 	MOV R1,#1 						;
 	MOV R0,#0 						;
 	STR R0,[R1]						;
@@ -38,9 +38,9 @@ wait:
 
 skip:
 // set y = 2
+	DMB SY 							;
 	MOV R0,#2 						;
 	STR R0,[R1]						;
-
 	DMB SY 							;
 
 // if x == 2 we have got the lock;
@@ -51,6 +51,7 @@ skip:
 	B.EQ locked 					;
 
 // set flag[1] to 0
+	DMB SY 							;
 	MOV R1,#1 						;
 	MOV R0,#0 						;
 	STR R0,[R1]						;

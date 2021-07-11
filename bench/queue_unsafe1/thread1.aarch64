@@ -1,0 +1,72 @@
+////
+// 3 threads
+// queue[3]: the wait-queue, addresses 0 through 2 [9 = empty]
+// var: shared variable, address 3
+// lock: the lock protecting the queue, address 4
+// doorbell[3]: the wakeup call, addresses 5 through 7
+//
+
+// first get the queue lock and enqueue myself
+	MOV R1,#4						;
+	MOV R3,#1 						;
+trylock:
+	LDXR R0,[R1]					;
+	CBNZ R0,trylock					;
+	STXR R2,R3,[R1]					;
+	CBNZ R2,trylock					;
+
+// now that I have the lock, find the
+// first empty slot
+	MOV R1,#0 						;
+findslot:
+	LDR R0,[R1]						;
+	CMP R0,#9 						;
+	B.EQ found						;
+	ADD R1,R1,#1 					;
+	B findslot						;
+
+found:
+// my tid
+	MOV R0,#1 						;
+	STR R0,[R1]						;
+// store my slot number away
+	MOV R4,R1						;
+// unlock
+	MOV R0,#0 						;
+	MOV R1,#4 						;
+	STR R0,[R1]						;
+// if I'm first, no waiting
+	CBZ R4,start					;
+// not first: wait on doorbell
+	MOV R1,#6						;
+wait:
+	LDR R0,[R1]						;
+	CBZ R0,wait 					;
+
+start:
+////
+// critical section:
+	MOV R1,#3 						;
+	LDR R0,[R1]						;
+	ADD R0,R0,#1 					;
+	STR R0,[R1]						;
+
+// done, now to wake up the next waiter
+// if I'm third, just exit
+	CMP R4,#2 						;
+	B.EQ finish						;
+
+// not last: wait until next slot is filled
+// I think no lock required here
+	ADD R4,R4,#1 					;
+waitpid:
+	LDR R0,[R4]						;
+	CMP R0,#9						;
+	B.EQ waitpid					;
+
+// wake up the process given by R0
+	ADD R1,R0,#5					;
+	MOV R0,#1 						;
+	STR R0,[R1]						;
+
+finish:
