@@ -348,8 +348,9 @@ def add_assign(p, r, exp, indentlevel=0):
 def add_LD(p, rprime, r, indentlevel=0):
 	add_indented_code("/* LD */", indentlevel)
 	add_indented_code("// Guess", indentlevel)
+	add_indented_code(f"old_cR = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"CR({p},REGP({p},{r})) = get_rng(0,NCONTEXT-1);", indentlevel)
-	# CREG, CL assigned later since may be needed in check
+	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code("// Check", indentlevel)
 	add_indented_code(f"ASSUME(active[CR({p},REGP({p},{r}))] == {p});", indentlevel)
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= IW({p},REGP({p},{r})));", indentlevel)
@@ -360,7 +361,6 @@ def add_LD(p, rprime, r, indentlevel=0):
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= CL({p},rdp));", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{r}));", indentlevel)
 	add_indented_code(f"if (CR({p},REGP({p},{r})) < CW({p},REGP({p},{r}))) {{", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = NU({p},REGP({p},{r}));", indentlevel+1)
@@ -372,8 +372,10 @@ def add_LD(p, rprime, r, indentlevel=0):
 def add_LDA(p, rprime, r, indentlevel=0):
 	add_indented_code("/* LDA */", indentlevel)
 	add_indented_code("// Guess", indentlevel)
+	add_indented_code(f"old_cR = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"CR({p},REGP({p},{r})) = get_rng(0,NCONTEXT-1);", indentlevel)
-	# CREG, CL assigned later since may be needed in check
+	# CL assigned later since needed in check
+	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code("// Check", indentlevel)
 	add_indented_code(f"ASSUME(active[CR({p},REGP({p},{r}))] == {p});", indentlevel)
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= IW({p},REGP({p},{r})));", indentlevel)
@@ -387,7 +389,6 @@ def add_LDA(p, rprime, r, indentlevel=0):
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= CS({p},x));", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"CL({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{r}));", indentlevel)
 	add_indented_code(f"if (CR({p},REGP({p},{r})) < CW({p},REGP({p},{r}))) {{", indentlevel)
@@ -400,8 +401,9 @@ def add_LDA(p, rprime, r, indentlevel=0):
 def add_LDX(p, rprime, r, indentlevel=0):
 	add_indented_code("/* LDX */", indentlevel)
 	add_indented_code("// Guess", indentlevel)
+	add_indented_code(f"old_cR = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"CR({p},REGP({p},{r})) = get_rng(0,NCONTEXT-1);", indentlevel)
-	# CREG, CL assigned later since may be needed in check
+	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code("// Check", indentlevel)
 	add_indented_code(f"ASSUME(active[CR({p},REGP({p},{r}))] == {p});", indentlevel)
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= IW({p},REGP({p},{r})));", indentlevel)
@@ -412,7 +414,6 @@ def add_LDX(p, rprime, r, indentlevel=0):
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= CL({p},rdp));", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{r}));", indentlevel)
 	add_indented_code(f"if (CR({p},REGP({p},{r})) < CW({p},REGP({p},{r}))) {{", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = NU({p},REGP({p},{r}));", indentlevel+1)
@@ -425,8 +426,10 @@ def add_LDX(p, rprime, r, indentlevel=0):
 def add_LDAX(p, rprime, r, indentlevel=0):
 	add_indented_code("/* LDAX */", indentlevel)
 	add_indented_code("// Guess", indentlevel)
+	add_indented_code(f"old_cR = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"CR({p},REGP({p},{r})) = get_rng(0,NCONTEXT-1);", indentlevel)
-	# CREG, CL assigned later since may be needed in check
+	# CL assigned later since needed in check
+	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code("// Check", indentlevel)
 	add_indented_code(f"ASSUME(active[CR({p},REGP({p},{r}))] == {p});", indentlevel)
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= IW({p},REGP({p},{r})));", indentlevel)
@@ -440,7 +443,6 @@ def add_LDAX(p, rprime, r, indentlevel=0):
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= CS({p},x));", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"CL({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{r}));", indentlevel)
 	add_indented_code(f"if (CR({p},REGP({p},{r})) < CW({p},REGP({p},{r}))) {{", indentlevel)

@@ -11,14 +11,14 @@ from enum import Enum
 #############################################
 
 if len(sys.argv) == 1:
-	infile = os.path.join(os.getcwd(), 'tests/2+2W.litmus')
+	indir = os.path.join(os.getcwd(), 'bench/burns_unsafe1')
 	outfile = os.path.join(os.getcwd(), 'arm2sc/translated.c')
-elif len(sys.argv) == 3:
-	infile = os.path.join(os.getcwd(), 'tests/'+sys.argv[1])
-	outfile = os.path.join(os.getcwd(), 'arm2sc/'+sys.argv[2])
+elif len(sys.argv) == 2:
+	indir = os.path.join(os.getcwd(), 'bench/'+sys.argv[1])
+	outfile = os.path.join(os.getcwd(), 'arm2sc/translated.c')
 else:
-	infile = os.path.join(os.getcwd(), sys.argv[1]+'/'+sys.argv[2])
-	outfile = os.path.join(os.getcwd(), 'arm2sc/'+sys.argv[3])
+	indir = os.path.join(os.getcwd(), 'bench/'+sys.argv[1])
+	outfile = os.path.join(os.getcwd(), 'arm2sc/'+sys.argv[2])
 
 class InstrType(Enum):
 	LD = 1
@@ -85,12 +85,15 @@ nproc = 0
 ncontext = 10 # later read in as argument
 # ncontext = 50 # for complete testing only
 
+maxregs = 0
+
 code = []
 incode = []
 init_addr_with_zeros = True							# whether to initialize addr with zeroes
 init_reg = []
 init_addr_diff = {}
 final_conds = []									# final conditions
+use_or = False 										# whether the conditions are separated by OR
 
 def add_indented_code(line, indentlevel=0):
 	### Add code with the given level of indentation ###
@@ -118,7 +121,7 @@ def add_preamble(indentlevel=0):
 	add_indented_code("int cR[NPROC*ADDRSIZE], iW[NPROC*ADDRSIZE],cW[NPROC*ADDRSIZE];", indentlevel)
 	add_indented_code("int cL[NPROC*NREGS], iS[NPROC*ADDRSIZE],cS[NPROC*ADDRSIZE];", indentlevel)
 	add_indented_code("int iReg[NPROC*NREGS], cReg[NPROC*NREGS];", indentlevel)
-	add_indented_code("int cDY[NPROC], cDS[NPROC], cDL[NPROC], cISB[NPROC], cAddr[NPROC];", indentlevel)
+	add_indented_code("int cDY[NPROC], cDS[NPROC], cDL[NPROC], cISB[NPROC], iAddr[NPROC];", indentlevel)
 	add_indented_code("int ctrl[NPROC], active[NCONTEXT];", indentlevel)
 	add_indented_code("int old_cDY, old_cW, old_cR, new_cW, new_iReg, new_cReg;", indentlevel)
 	add_indented_code("", indentlevel)
@@ -180,7 +183,7 @@ def add_initProc(indentlevel=0):
 	add_indented_code("CREG(p,r) = 0;", indentlevel+2)
 	add_indented_code("}", indentlevel+1)
 	add_indented_code("ctrl[p] = 0;", indentlevel+1)
-	add_indented_code("cAddr[p] = 0;", indentlevel+1)
+	add_indented_code("iAddr[p] = 0;", indentlevel+1)
 	add_indented_code("cDY[p] = 0;", indentlevel+1)
 	add_indented_code("cISB[p] = 0;", indentlevel+1)
 	add_indented_code("cDS[p] = 0;", indentlevel+1)
@@ -232,9 +235,9 @@ def add_ST(p, rprime, r, indentlevel=0):
 	add_indented_code(f"ASSUME(active[CW({p},REGP({p},{rprime}))] == {p});", indentlevel)
 	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= max(old_cW,CR({p},REGP({p},{rprime}))));", indentlevel)
 	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= ctrl[{p}]);", indentlevel)
-	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= cAddr[{p}]);", indentlevel)
+	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= iAddr[{p}]);", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{rprime}));", indentlevel)
+	add_indented_code(f"iAddr[{p}] = max(iAddr[{p}], CREG({p},{rprime}));", indentlevel)
 	add_indented_code(f"MU(REGP({p},{rprime}),CW({p},REGP({p},{rprime}))) = REGP({p},{r});", indentlevel)
 	add_indented_code(f"NU({p},REGP({p},{rprime})) = REGP({p},{r});", indentlevel)
 	add_indented_code(f"DELTA(REGP({p},{rprime}),CW({p},REGP({p},{rprime}))) = -1;", indentlevel)
@@ -260,9 +263,9 @@ def add_STL(p, rprime, r, indentlevel=0):
 	add_indented_code(f"ASSUME(active[CW({p},REGP({p},{rprime}))] == {p});", indentlevel)
 	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= max(old_cW,CR({p},REGP({p},{rprime}))));", indentlevel)
 	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= ctrl[{p}]);", indentlevel)
-	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= cAddr[{p}]);", indentlevel)
+	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= iAddr[{p}]);", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{rprime}));", indentlevel)
+	add_indented_code(f"iAddr[{p}] = max(iAddr[{p}], CREG({p},{rprime}));", indentlevel)
 	add_indented_code(f"MU(REGP({p},{rprime}),CW({p},REGP({p},{rprime}))) = REGP({p},{r});", indentlevel)
 	add_indented_code(f"NU({p},REGP({p},{rprime})) = REGP({p},{r});", indentlevel)
 	add_indented_code(f"DELTA(REGP({p},{rprime}),CW({p},REGP({p},{rprime}))) = -1;", indentlevel)
@@ -283,9 +286,9 @@ def add_STX(p, rdoubleprime, rprime, r, indentlevel=0):
 	add_indented_code(f"ASSUME(new_cW >= max(CREG({p},{r}),CREG({p},{rprime})));", indentlevel)
 	add_indented_code(f"ASSUME(new_cW >= max(old_cW,CR({p},REGP({p},{rprime}))));", indentlevel)
 	add_indented_code(f"ASSUME(new_cW >= ctrl[{p}]);", indentlevel)
-	add_indented_code(f"ASSUME(new_cW >= cAddr[{p}]);", indentlevel)
+	add_indented_code(f"ASSUME(new_cW >= iAddr[{p}]);", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{rprime}));", indentlevel)
+	add_indented_code(f"iAddr[{p}] = max(iAddr[{p}], CREG({p},{rprime}));", indentlevel)
 	add_indented_code(f"if (DELTA(REGP({p},{rprime}),new_cW) == {p}) {{", indentlevel)
 	add_indented_code(f"MU(REGP({p},{rprime}),new_cW) = REGP({p},{r});", indentlevel+1)
 	add_indented_code(f"NU({p},REGP({p},{rprime})) = REGP({p},{r});", indentlevel+1)
@@ -314,9 +317,9 @@ def add_STLX(p, rdoubleprime, rprime, r, indentlevel=0):
 	add_indented_code(f"ASSUME(new_cW >= max(CREG({p},{r}),CREG({p},{rprime})));", indentlevel)
 	add_indented_code(f"ASSUME(new_cW >= max(old_cW,CR({p},REGP({p},{rprime}))));", indentlevel)
 	add_indented_code(f"ASSUME(new_cW >= ctrl[{p}]);", indentlevel)
-	add_indented_code(f"ASSUME(new_cW >= cAddr[{p}]);", indentlevel)
+	add_indented_code(f"ASSUME(new_cW >= iAddr[{p}]);", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{rprime}));", indentlevel)
+	add_indented_code(f"iAddr[{p}] = max(iAddr[{p}], CREG({p},{rprime}));", indentlevel)
 	add_indented_code(f"if (DELTA(REGP({p},{rprime}),new_cW) == {p}) {{", indentlevel)
 	add_indented_code(f"MU(REGP({p},{rprime}),new_cW) = REGP({p},{r});", indentlevel+1)
 	add_indented_code(f"NU({p},REGP({p},{rprime})) = REGP({p},{r});", indentlevel+1)
@@ -348,8 +351,9 @@ def add_assign(p, r, exp, indentlevel=0):
 def add_LD(p, rprime, r, indentlevel=0):
 	add_indented_code("/* LD */", indentlevel)
 	add_indented_code("// Guess", indentlevel)
+	add_indented_code(f"old_cR = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"CR({p},REGP({p},{r})) = get_rng(0,NCONTEXT-1);", indentlevel)
-	# CREG, CL assigned later since may be needed in check
+	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code("// Check", indentlevel)
 	add_indented_code(f"ASSUME(active[CR({p},REGP({p},{r}))] == {p});", indentlevel)
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= IW({p},REGP({p},{r})));", indentlevel)
@@ -360,8 +364,7 @@ def add_LD(p, rprime, r, indentlevel=0):
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= CL({p},rdp));", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
-	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{r}));", indentlevel)
+	add_indented_code(f"iAddr[{p}] = max(iAddr[{p}], CREG({p},{r}));", indentlevel)
 	add_indented_code(f"if (CR({p},REGP({p},{r})) < CW({p},REGP({p},{r}))) {{", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = NU({p},REGP({p},{r}));", indentlevel+1)
 	add_indented_code("} else {", indentlevel)
@@ -372,8 +375,10 @@ def add_LD(p, rprime, r, indentlevel=0):
 def add_LDA(p, rprime, r, indentlevel=0):
 	add_indented_code("/* LDA */", indentlevel)
 	add_indented_code("// Guess", indentlevel)
+	add_indented_code(f"old_cR = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"CR({p},REGP({p},{r})) = get_rng(0,NCONTEXT-1);", indentlevel)
-	# CREG, CL assigned later since may be needed in check
+	# CL assigned later since needed in check
+	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code("// Check", indentlevel)
 	add_indented_code(f"ASSUME(active[CR({p},REGP({p},{r}))] == {p});", indentlevel)
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= IW({p},REGP({p},{r})));", indentlevel)
@@ -387,9 +392,8 @@ def add_LDA(p, rprime, r, indentlevel=0):
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= CS({p},x));", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"CL({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
-	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{r}));", indentlevel)
+	add_indented_code(f"iAddr[{p}] = max(iAddr[{p}], CREG({p},{r}));", indentlevel)
 	add_indented_code(f"if (CR({p},REGP({p},{r})) < CW({p},REGP({p},{r}))) {{", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = NU({p},REGP({p},{r}));", indentlevel+1)
 	add_indented_code("} else {", indentlevel)
@@ -400,8 +404,9 @@ def add_LDA(p, rprime, r, indentlevel=0):
 def add_LDX(p, rprime, r, indentlevel=0):
 	add_indented_code("/* LDX */", indentlevel)
 	add_indented_code("// Guess", indentlevel)
+	add_indented_code(f"old_cR = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"CR({p},REGP({p},{r})) = get_rng(0,NCONTEXT-1);", indentlevel)
-	# CREG, CL assigned later since may be needed in check
+	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code("// Check", indentlevel)
 	add_indented_code(f"ASSUME(active[CR({p},REGP({p},{r}))] == {p});", indentlevel)
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= IW({p},REGP({p},{r})));", indentlevel)
@@ -412,8 +417,7 @@ def add_LDX(p, rprime, r, indentlevel=0):
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= CL({p},rdp));", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
-	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{r}));", indentlevel)
+	add_indented_code(f"iAddr[{p}] = max(iAddr[{p}], CREG({p},{r}));", indentlevel)
 	add_indented_code(f"if (CR({p},REGP({p},{r})) < CW({p},REGP({p},{r}))) {{", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = NU({p},REGP({p},{r}));", indentlevel+1)
 	add_indented_code("} else {", indentlevel)
@@ -425,8 +429,10 @@ def add_LDX(p, rprime, r, indentlevel=0):
 def add_LDAX(p, rprime, r, indentlevel=0):
 	add_indented_code("/* LDAX */", indentlevel)
 	add_indented_code("// Guess", indentlevel)
+	add_indented_code(f"old_cR = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"CR({p},REGP({p},{r})) = get_rng(0,NCONTEXT-1);", indentlevel)
-	# CREG, CL assigned later since may be needed in check
+	# CL assigned later since needed in check
+	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code("// Check", indentlevel)
 	add_indented_code(f"ASSUME(active[CR({p},REGP({p},{r}))] == {p});", indentlevel)
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= IW({p},REGP({p},{r})));", indentlevel)
@@ -440,9 +446,8 @@ def add_LDAX(p, rprime, r, indentlevel=0):
 	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= CS({p},x));", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"CREG({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
 	add_indented_code(f"CL({p},{rprime}) = CR({p},REGP({p},{r}));", indentlevel)
-	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{r}));", indentlevel)
+	add_indented_code(f"iAddr[{p}] = max(iAddr[{p}], CREG({p},{r}));", indentlevel)
 	add_indented_code(f"if (CR({p},REGP({p},{r})) < CW({p},REGP({p},{r}))) {{", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = NU({p},REGP({p},{r}));", indentlevel+1)
 	add_indented_code("} else {", indentlevel)
@@ -475,8 +480,8 @@ def add_isb(p, indentlevel=0):
 	add_indented_code(f"ASSUME(cISB[{p}] >= cDY[{p}]);", indentlevel)
 	add_indented_code(f"ASSUME(cISB[{p}] >= ctrl[{p}]);", indentlevel)
 	# we need all po-prev instructions to have fully defined memory footprints
-	# time to use cAddr
-	add_indented_code(f"ASSUME(cISB[{p}] >= cAddr[{p}]);", indentlevel)
+	# time to use iAddr
+	add_indented_code(f"ASSUME(cISB[{p}] >= iAddr[{p}]);", indentlevel)
 	add_indented_code("", indentlevel)
 
 def add_dmb_ld(p, indentlevel=0):
@@ -513,9 +518,14 @@ def add_verProc(indentlevel=0):
 	add_indented_code("}", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code("if (", indentlevel)
-	for cnd in final_conds:
-		add_indented_code(cnd + " &&", indentlevel+1)
-	add_indented_code("1)", indentlevel)
+	if use_or:
+		for cnd in final_conds:
+			add_indented_code(cnd + " ||", indentlevel+1)
+		add_indented_code("0)", indentlevel)
+	else:
+		for cnd in final_conds:
+			add_indented_code(cnd + " &&", indentlevel+1)
+		add_indented_code("1)", indentlevel)
 	add_indented_code("ASSERT(0);", indentlevel+1)
 	add_indented_code("", indentlevel)
 	
@@ -532,187 +542,114 @@ class Instruction:
 		self.op2 = op2
 		self.op3 = op3
 
-	# add_code
+def parse_file_without_comments_or_empty_lines(filename, prefix=None):
+	if prefix:
+		filename = os.path.join(prefix,filename)
+	lines = []
+	with open(filename) as f:
+		for line in f.readlines():
+			line = line.strip()
+			if line.startswith("//") or not line:
+				continue 
+			lines.append(line)
+	return lines
 
+def register(r):
+	# Since registers 0 and 1 are reserved for CMP/B.XY instructions, and
+	# 2 for holding temporary values for offseted instructions,
+	# translate register r to r+3
+	global maxregs
+	maxregs = max(maxregs, r)
+	return r+3
 
-def parse_from_litmus(ifile):
-	global nproc, incode
-	var_set = set()										# global variable list
-	process_local_regs = []								# process local register list
-	mem_mapping = {}									# variables to values
-	process_local_mapping = []							# registers to variable (addresses)	
-	
-	process_reg_nums = []								# number of per-proc registers
-	process_reg_to_num_map = []							# assign numbers to registers		
-	var_to_addr_map = {}								# global variable to address mapping	
+def parse_test(idir):
+	global nproc, addrsize, nregs, maxreg, incode, init_addr_diff, use_or
 
-	init_conds = [] 									# global var initial values
+	initial_memory_values = {}							# specific initial values
 
-	process_private_regs = []
+	init = parse_file_without_comments_or_empty_lines('init.cnds', idir)
+	nproc = int(init[0])
+	addrsize = int(init[1]) 
 
-	with open(ifile) as f:
-		content = [x.strip() for x in f.readlines()]
-	cur_index = 0
-	
-	# find the '{'
-	while content[cur_index] != "{":
-		cur_index += 1
-	cur_index += 1
+	init = init[2:]
+	for line in init:
+		parts = line.split(':')
+		part1 = int(parts[0].strip())
+		part2 = int(parts[1].strip())
+		if part2 != 0:
+			init_addr_diff[part1] = part2
 
-	while content[cur_index] != "}":
-		thisline = [part.strip() for part in content[cur_index].split(';')[:-1]]
-		# print(thisline)
-
-		for part in thisline:
-			if ':' in part:								# register initial values
-				subparts1 = part.split(':')
-				index = int(subparts1[0])				# which process
-				subparts2 = subparts1[1].split('=')		
-				while nproc <= index:
-					process_local_regs.append(set())
-					process_local_mapping.append({})
-					process_reg_to_num_map.append({})
-					incode.append([])
-					process_reg_nums.append(2)			# register 0,1 are "private" registers for CMP stmts
-					process_private_regs.append(-1)
-					nproc += 1
-
-				process_local_regs[index].add(subparts2[0][1:])
-				var_set.add(subparts2[1])
-				process_local_mapping[index][subparts2[0][1:]] = subparts2[1]
-			else:										# variable initial values
-				subparts = part.split('=')
-				var_set.add(subparts[0])
-				mem_mapping[subparts[0]] = int(subparts[1])
-
-		cur_index += 1
-
-	cur_index += 2 										# skip over the '}' and PO|P1|... lines
-
-	vind = 0
-	for var in var_set:
-		var_to_addr_map[var] = vind
-		vind += 1
-
-	# assign local registers numbers - this may miss some
-	# registers that we will find first referred to in the code.
-	# But for them, we'll simply allocate higher counts on-the-fly
 	for proc in range(nproc):
-		for reg in process_local_regs[proc]:
-			process_reg_to_num_map[proc][reg] = process_reg_nums[proc]
-			process_reg_nums[proc] += 1
-		
-		# Add register assignments to output code
-		for reg, var in process_local_mapping[proc].items():
-			istmt = f"REGP({proc},{process_reg_to_num_map[proc][reg]}) = {var_to_addr_map[var]};"
-			init_reg.append(istmt)
-
-	while not content[cur_index].startswith("exists"):
-		parts = [part.strip() for part in content[cur_index][:-1].split('|')]
-		for proc in range(nproc):
-			# need to remove spaces
-			part = parts[proc].split(' ')
-			operation = part[0]
-			if operation in ['ISB','NOP','']:
-				operands = ['']
-			elif ':' in operation:
-				# label
-				stmt = Instruction(proc, InstrType.LABEL.value, operation[:-1])
+		incode.append([])
+		proc_code = parse_file_without_comments_or_empty_lines( \
+			"thread"+str(proc)+".aarch64", idir)
+		for line in proc_code:
+			# There are two possibilities here
+			# one is that the line end with ':'; this represents a label
+			# Otherwise, its an instruction
+			if line.endswith(':'):
+				# label - append procid to make it unique
+				stmt = Instruction(proc, InstrType.LABEL.value, "p"+str(proc)+line[:-1])
 				incode[proc].append(stmt)
-				operation = ''				# so that the file isn't blacklisted
-			else:
-				operands =  part[1].split(',')
-				if len(operands) == 2 and not operands[1]:
-					operands[1] = part[2]
-
-			# these litmus tests have very simple addresses - simple locations
-
+				continue 
+			# Not a label: remove the semicolon, and infer the operands
+			line = line[:-1].strip()
+			spaceparts = line.split(" ")
+			operation = spaceparts[0]
+			if (len(spaceparts) > 1):
+				operands = spaceparts[1].split(',')
 			if operation in ['LDR','LDAR','LDAXR','LDXR']:
-				operands[0] = operands[0][1:]
+				operands[0] = register(int(operands[0][1:]))
 				if len(operands) > 2:
 					# has the offset and stuff
-					operands[1] = operands[1][2:]
+					# operands array is of the form : ["R1" "[R2" "#x]"]   
+					operands[1] = register(int(operands[1][2:]))
 					if ']' in operands[2]:
-						operands[2] = operands[2][1:-1]
+						operands[2] = register(int(operands[2][1:-1]))
 					else:
-						operands[2] = operands[2][1:]
-					# Now add an assign statement to the private register
+						operands[2] = register(int(operands[2][1:]))
+					# Now add an assign statement to the private register 2
 					# followed by a load
-					for operand in operands:
-						if operand not in process_local_regs[proc]:
-							process_local_regs[proc].add(operand)
-							process_reg_to_num_map[proc][operand] = process_reg_nums[proc]
-							process_reg_nums[proc] += 1
-					if process_private_regs[proc] == -1:
-						process_private_regs[proc] = process_reg_nums[proc]
-						process_reg_nums[proc] += 1
-					exp = Expression(0, process_reg_to_num_map[proc][operands[1]]	\
-						, 0, process_reg_to_num_map[proc][operands[2]],'+')
-					stmt1 = Instruction(proc, InstrType.ASSIGN.value, process_private_regs[proc], exp)
+					exp = Expression(0, operands[1], 0, operands[2],'+')
+					stmt1 = Instruction(proc, InstrType.ASSIGN.value, 2, exp)
 					stmt2 = Instruction(proc, InstrType[operation[:-1]].value, 	\
-						process_reg_to_num_map[proc][operands[0]],	\
-						process_private_regs[proc])
+						operands[0], 2)
 					incode[proc].append(stmt1)
 					incode[proc].append(stmt2)
 				else:
-					operands[1] = operands[1][2:-1]
-					for operand in operands:
-						if operand not in process_local_regs[proc]:
-							process_local_regs[proc].add(operand)
-							process_reg_to_num_map[proc][operand] = process_reg_nums[proc]
-							process_reg_nums[proc] += 1
+					operands[1] = register(int(operands[1][2:-1]))
 					stmt = Instruction(proc, InstrType[operation[:-1]].value, 	\
-						process_reg_to_num_map[proc][operands[0]],	\
-						process_reg_to_num_map[proc][operands[1]])
+						operands[0], operands[1])
 					incode[proc].append(stmt)
 			elif operation in ['STR', 'STLR']:
-				operands[0] = operands[0][1:]
+				operands[0] = register(int(operands[0][1:]))
 				if len(operands) > 2:
 					# has the offset and stuff
-					operands[1] = operands[1][2:]
+					# operands array is of the form : ["R1" "[R2" "#x]"]   
+					operands[1] = register(int(operands[1][2:]))
 					if ']' in operands[2]:
-						operands[2] = operands[2][1:-1]
+						operands[2] = register(int(operands[2][1:-1]))
 					else:
-						operands[2] = operands[2][1:]
-					# Now add an assign statement to the private register
-					# followed by a load
-					for operand in operands:
-						if operand not in process_local_regs[proc]:
-							process_local_regs[proc].add(operand)
-							process_reg_to_num_map[proc][operand] = process_reg_nums[proc]
-							process_reg_nums[proc] += 1
-					if process_private_regs[proc] == -1:
-						process_private_regs[proc] = process_reg_nums[proc]
-						process_reg_nums[proc] += 1
-					exp = Expression(0, process_reg_to_num_map[proc][operands[1]]	\
-						, 0, process_reg_to_num_map[proc][operands[2]],'+')
-					stmt1 = Instruction(proc, InstrType.ASSIGN.value, process_private_regs[proc], exp)
+						operands[2] = register(int(operands[2][1:]))
+					# Now add an assign statement to the private register 2
+					# followed by a store
+					exp = Expression(0, operands[1], 0, operands[2],'+')
+					stmt1 = Instruction(proc, InstrType.ASSIGN.value, 2, exp)
 					stmt2 = Instruction(proc, InstrType[operation[:-1]].value, 	\
-						process_private_regs[proc], process_reg_to_num_map[proc][operands[0]])
+						2, operands[0])
 					incode[proc].append(stmt1)
 					incode[proc].append(stmt2)
 				else:
-					operands[1] = operands[1][2:-1]
-					for operand in operands:
-						if operand not in process_local_regs[proc]:
-							process_local_regs[proc].add(operand)
-							process_reg_to_num_map[proc][operand] = process_reg_nums[proc]
-							process_reg_nums[proc] += 1
-					stmt = Instruction(proc, InstrType[operation[:-1]].value,	\
-						process_reg_to_num_map[proc][operands[1]], process_reg_to_num_map[proc][operands[0]])
+					operands[1] = register(int(operands[1][2:-1]))
+					stmt = Instruction(proc, InstrType[operation[:-1]].value, 	\
+						operands[1], operands[0])
 					incode[proc].append(stmt)
 			elif operation in ['STXR', 'STLXR']:
-				operands[0] = operands[0][1:]
-				operands[1] = operands[1][1:]
-				operands[2] = operands[2][2:-1]
-				for operand in operands:
-					if operand not in process_local_regs[proc]:
-						process_local_regs[proc].add(operand)
-						process_reg_to_num_map[proc][operand] = process_reg_nums[proc]
-						process_reg_nums[proc] += 1
+				operands[0] = register(int(operands[0][1:]))
+				operands[1] = register(int(operands[1][1:]))
+				operands[2] = register(int(operands[2][2:-1]))
 				stmt = Instruction(proc, InstrType[operation[:-1]].value,	\
-					process_reg_to_num_map[proc][operands[0]], process_reg_to_num_map[proc][operands[2]],	\
-					process_reg_to_num_map[proc][operands[1]])
+					operands[0], operands[2],operands[1])
 				incode[proc].append(stmt)
 			elif operation == "DMB":
 				stmt = Instruction(proc, InstrType[operation+operands[0]].value)
@@ -721,152 +658,194 @@ def parse_from_litmus(ifile):
 				stmt = Instruction(proc, InstrType.ISB.value)
 				incode[proc].append(stmt)
 			elif operation == "MOV":
-				operands[0] = operands[0][1:]
-				if operands[0] not in process_local_regs[proc]:
-					process_local_regs[proc].add(operands[0])
-					process_reg_to_num_map[proc][operands[0]] = process_reg_nums[proc]
-					process_reg_nums[proc] += 1
-
+				operands[0] = register(int(operands[0][1:]))
 				if operands[1][0] == '#': 
 					exp = Expression(1, int(operands[1][1:]))
 					stmt = Instruction(proc, InstrType.ASSIGN.value,	\
-						process_reg_to_num_map[proc][operands[0]], exp)
+						operands[0], exp)
 				else:
-					operands[1] = operands[1][1:]
-					if operands[1] not in process_local_regs[proc]:
-						process_local_regs[proc].add(operands[1])
-						process_reg_to_num_map[proc][operands[1]] = process_reg_nums[proc]
-						process_reg_nums[proc] += 1
-					exp = Expression(0, process_reg_to_num_map[proc][operands[1]])
+					operands[1] = register(int(operands[1][1:]))
+					exp = Expression(0, operands[1])
 					stmt = Instruction(proc, InstrType.ASSIGN.value,	\
-						process_reg_to_num_map[proc][operands[0]], exp)
+						operands[0], exp)
 				incode[proc].append(stmt)
 			elif operation == "CMP":
 				if operands[0][0] == '#':
 					exp = Expression(1, int(operands[0][1:]))
 					stmt1 = Instruction(proc, InstrType.ASSIGN.value, 0, exp)
 				else:
-					operands[0] = operands[0][1:]
-					if operands[0] not in process_local_regs[proc]:
-						process_local_regs[proc].add(operands[0])
-						process_reg_to_num_map[proc][operands[0]] = process_reg_nums[proc]
-						process_reg_nums[proc] += 1
-					exp = Expression(0, process_reg_to_num_map[proc][operands[0]])
+					operands[0] = register(int(operands[0][1:]))
+					exp = Expression(0, operands[0])
 					stmt1 = Instruction(proc, InstrType.ASSIGN.value, 0, exp)
 				if operands[1][0] == '#':
 					exp = Expression(1, int(operands[1][1:]))
 					stmt2 = Instruction(proc, InstrType.ASSIGN.value, 1, exp)
 				else:
-					operands[1] = operands[1][1:]
-					if operands[1] not in process_local_regs[proc]:
-						process_local_regs[proc].add(operands[1])
-						process_reg_to_num_map[proc][operands[1]] = process_reg_nums[proc]
-						process_reg_nums[proc] += 1
-					exp = Expression(0, process_reg_to_num_map[proc][operands[1]])
+					operands[1] = register(int(operands[1][1:]))
+					exp = Expression(0, operands[1])
 					stmt2 = Instruction(proc, InstrType.ASSIGN.value, 1, exp)
 				incode[proc].append(stmt1)
 				incode[proc].append(stmt2)
-			elif operation == "B.EQ":
-				stmt = Instruction(proc, InstrType.ACI.value, "BEQ", operands[0])
+			elif operation in ["B.EQ", "B.GE", "B.NE", "B.GT"]:
+				# append proc before label name, to make the label unique
+				stmt = Instruction(proc, InstrType.ACI.value, operation[0]+operation[2:],  \
+					"p"+str(proc)+operands[0])
+				incode[proc].append(stmt)
+			elif operation == "B":
+				# append proc before label name, to make the label unique
+				stmt = Instruction(proc, InstrType.ACI.value, operation, "p"+str(proc)+operands[0])
 				incode[proc].append(stmt)
 			elif operation == "EOR":
-				operands[0] = operands[0][1:]
-				if operands[0] not in process_local_regs[proc]:
-					process_local_regs[proc].add(operands[0])
-					process_reg_to_num_map[proc][operands[0]] = process_reg_nums[proc]
-					process_reg_nums[proc] += 1
+				operands[0] = register(int(operands[0][1:]))
 				if operands[1][0] == '#':
 					type1 = 1
 					operands[1] = int(operands[1][1:])
-					op1 = operands[1]
 				else:
 					type1 = 0
-					operands[1] = operands[1][1:]
-					if operands[1] not in process_local_regs[proc]:
-						process_local_regs[proc].add(operands[1])
-						process_reg_to_num_map[proc][operands[1]] = process_reg_nums[proc]
-						process_reg_nums[proc] += 1
-					op1 = process_reg_to_num_map[proc][operands[1]]
+					operands[1] = register(int(operands[1][1:]))
 				if operands[2][0] == '#':
 					type2 = 1
 					operands[2] = int(operands[2][1:])
-					op2 = operands[2]
 				else:
 					type2 = 0
-					operands[2] = operands[2][1:]
-					if operands[2] not in process_local_regs[proc]:
-						process_local_regs[proc].add(operands[2])
-						process_reg_to_num_map[proc][operands[2]] = process_reg_nums[proc]
-						process_reg_nums[proc] += 1
-					op2 = process_reg_to_num_map[proc][operands[2]]
-				exp = Expression(type1, op1, type2,	op2, '^')
-				stmt = Instruction(proc, InstrType.ASSIGN.value,	\
-					process_reg_to_num_map[proc][operands[0]], exp)
+					operands[2] = register(int(operands[2][1:]))
+				exp = Expression(type1, operands[1], type2, operands[2], '^')
+				stmt = Instruction(proc, InstrType.ASSIGN.value, operands[0], exp)
+				incode[proc].append(stmt)
+			elif operation == "ADD":
+				operands[0] = register(int(operands[0][1:]))
+				if operands[1][0] == '#':
+					type1 = 1
+					operands[1] = int(operands[1][1:])
+				else:
+					type1 = 0
+					operands[1] = register(int(operands[1][1:]))
+				if operands[2][0] == '#':
+					type2 = 1
+					operands[2] = int(operands[2][1:])
+				else:
+					type2 = 0
+					operands[2] = register(int(operands[2][1:]))
+				exp = Expression(type1, operands[1], type2, operands[2], '+')
+				stmt = Instruction(proc, InstrType.ASSIGN.value, operands[0], exp)
+				incode[proc].append(stmt)
+			elif operation == "SUB":
+				operands[0] = register(int(operands[0][1:]))
+				if operands[1][0] == '#':
+					type1 = 1
+					operands[1] = int(operands[1][1:])
+				else:
+					type1 = 0
+					operands[1] = register(int(operands[1][1:]))
+				if operands[2][0] == '#':
+					type2 = 1
+					operands[2] = int(operands[2][1:])
+				else:
+					type2 = 0
+					operands[2] = register(int(operands[2][1:]))
+				exp = Expression(type1, operands[1], type2, operands[2], '-')
+				stmt = Instruction(proc, InstrType.ASSIGN.value, operands[0], exp)
+				incode[proc].append(stmt)
+			elif operation == "MUL":
+				operands[0] = register(int(operands[0][1:]))
+				if operands[1][0] == '#':
+					type1 = 1
+					operands[1] = int(operands[1][1:])
+				else:
+					type1 = 0
+					operands[1] = register(int(operands[1][1:]))
+				if operands[2][0] == '#':
+					type2 = 1
+					operands[2] = int(operands[2][1:])
+				else:
+					type2 = 0
+					operands[2] = register(int(operands[2][1:]))
+				exp = Expression(type1, operands[1], type2, operands[2], '*')
+				stmt = Instruction(proc, InstrType.ASSIGN.value, operands[0], exp)
+				incode[proc].append(stmt)
+			elif operation == "DIV":
+				# Is actually equivalent to 'UDIV' of AArch64
+				operands[0] = register(int(operands[0][1:]))
+				if operands[1][0] == '#':
+					type1 = 1
+					operands[1] = int(operands[1][1:])
+				else:
+					type1 = 0
+					operands[1] = register(int(operands[1][1:]))
+				if operands[2][0] == '#':
+					type2 = 1
+					operands[2] = int(operands[2][1:])
+				else:
+					type2 = 0
+					operands[2] = register(int(operands[2][1:]))
+				exp = Expression(type1, operands[1], type2, operands[2], '/')
+				stmt = Instruction(proc, InstrType.ASSIGN.value, operands[0], exp)
+				incode[proc].append(stmt)
+			elif operation == "REM":
+				# No such operator exists in AArch64
+				# However, we can implement remainder using a divide and
+				# a subtract: to save the hassle, we define another instruction
+				operands[0] = register(int(operands[0][1:]))
+				if operands[1][0] == '#':
+					type1 = 1
+					operands[1] = int(operands[1][1:])
+				else:
+					type1 = 0
+					operands[1] = register(int(operands[1][1:]))
+				if operands[2][0] == '#':
+					type2 = 1
+					operands[2] = int(operands[2][1:])
+				else:
+					type2 = 0
+					operands[2] = register(int(operands[2][1:]))
+				exp = Expression(type1, operands[1], type2, operands[2], '%')
+				stmt = Instruction(proc, InstrType.ASSIGN.value, operands[0], exp)
 				incode[proc].append(stmt)
 			elif operation == "CBZ":
-				operands[0] = operands[0][1:]
-				if operands[0] not in process_local_regs[proc]:
-					process_local_regs[proc].add(operands[0])
-					process_reg_to_num_map[proc][operands[0]] = process_reg_nums[proc]
-					process_reg_nums[proc] += 1
+				operands[0] = register(int(operands[0][1:]))
+				# append proc before label name, to make the label unique
 				stmt = Instruction(proc, InstrType.ACI.value, "CBZ",	\
-					process_reg_to_num_map[proc][operands[0]], operands[1])
+					operands[0], "p"+str(proc)+operands[1])
 				incode[proc].append(stmt)
 			elif operation == "CBNZ":
-				operands[0] = operands[0][1:]
-				if operands[0] not in process_local_regs[proc]:
-					process_local_regs[proc].add(operands[0])
-					process_reg_to_num_map[proc][operands[0]] = process_reg_nums[proc]
-					process_reg_nums[proc] += 1
+				operands[0] = register(int(operands[0][1:]))
+				# append proc before label name, to make the label unique
 				stmt = Instruction(proc, InstrType.ACI.value, "CBNZ",	\
-					process_reg_to_num_map[proc][operands[0]], operands[1])
+					operands[0], "p"+str(proc)+operands[1])
 				incode[proc].append(stmt)
-		cur_index += 1
-
-	for var, value in mem_mapping.items():
-		init_addr_diff[var_to_addr_map[var]] = value
 
 	# extract the conditions
-	# for now we support ONLY and symbols (/\): if you want OR symbols,
-	# you're out of luck
-	if content[cur_index] == "exists":
-		cur_index += 1
-		conditions = content[cur_index][1:-1].split('/')
-	else:
-		line = content[cur_index][6:].strip()
-		conditions = line[1:-1].split('/')
-	for condition in conditions:
-		if condition[0] == '\\':
-			# lingering '\' from the /\
-			condition = condition[1:]
-		condition = condition.strip()
-		if ':' in condition:
-			# local constraint on a register
-			# Format: LOCAL <PROCID> <REGNO> <EXPECTED_VALUE>
-			parts = condition.split(':')
-			proc = int(parts[0])
-			subparts = parts[1].split('=')
-			subparts[0] = subparts[0][1:]
-
-			if subparts[0] not in process_local_regs[proc]:
-				process_local_regs[proc].add(subparts[0])
-				process_reg_to_num_map[proc][subparts[0]] = process_reg_nums[proc]
-				process_reg_nums[proc] += 1
-
-			istmt = f"(REGP({proc},{process_reg_to_num_map[proc][subparts[0]]}) == {int(subparts[1])})"
-			final_conds.append(istmt)
+	check = parse_file_without_comments_or_empty_lines('check.cnds', idir)
+	for line in check:
+		contra = False
+		geq = False
+		if line.strip() == "USEOR":
+			# We should use OR instead of and
+			use_or = True
+			continue
+		if line.startswith("not"):
+			contra = True
+			line = line[3:].strip()
+		if line.startswith("geq"):
+			geq = True
+			line = line[3:].strip()
+		parts = line.split(':')
+		parts[0] = int(parts[0].strip())
+		parts[1] = int(parts[1].strip())
+		if contra:
+			if geq:
+				istmt = f"(MU({parts[0]},NCONTEXT-1) < {int(parts[1])})"
+			else:
+				istmt = f"(MU({parts[0]},NCONTEXT-1) != {int(parts[1])})"
 		else:
-			# global constraint on a variable
-			# Format: GLOBAL <ADDRESS> <EXPECTED_VALUE>
-			parts = condition.split('=')
+			if geq:
+				istmt = f"(MU({parts[0]},NCONTEXT-1) >= {int(parts[1])})"
+			else:
+				istmt = f"(MU({parts[0]},NCONTEXT-1) == {int(parts[1])})"
+		final_conds.append(istmt)
 
-			if parts[0] not in var_set:
-				var_set.add(parts[0])
-				var_to_addr_map = vind
-				vind += 1
-
-			istmt = f"(MU({var_to_addr_map[parts[0]]},NCONTEXT-1) == {int(parts[1])})"
-			final_conds.append(istmt)
+	nregs = maxregs + 4 		
+	# 3 because 0-2 are reserved, and +1 because maxregs is off-by 1 [0-indexed]
 
 def add_aci_instruction(instr, indentlevel=0):
 	if (instr.op1 == "BEQ"):
@@ -878,9 +857,37 @@ def add_aci_instruction(instr, indentlevel=0):
 		add_indented_code(f"if (REGP({instr.p},0) == REGP({instr.p},1))", indentlevel)
 		add_indented_code(f"goto {instr.op2};", indentlevel+1)
 		add_indented_code("", indentlevel)
+	elif (instr.op1 == "BNE"):
+		add_indented_code("/* BNE */", indentlevel)
+		add_control(instr.p, indentlevel)
+		# Can commit BEQ only after registers 1 and 0 are ready
+		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},0));", indentlevel)
+		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},1));", indentlevel)
+		add_indented_code(f"if (REGP({instr.p},0) != REGP({instr.p},1))", indentlevel)
+		add_indented_code(f"goto {instr.op2};", indentlevel+1)
+		add_indented_code("", indentlevel)
+	elif (instr.op1 == "BGE"):
+		add_indented_code("/* BGE */", indentlevel)
+		add_control(instr.p, indentlevel)
+		# Can commit BEQ only after registers 1 and 0 are ready
+		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},0));", indentlevel)
+		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},1));", indentlevel)
+		add_indented_code(f"if (REGP({instr.p},0) >= REGP({instr.p},1))", indentlevel)
+		add_indented_code(f"goto {instr.op2};", indentlevel+1)
+		add_indented_code("", indentlevel)
+	elif (instr.op1 == "BGT"):
+		add_indented_code("/* BGT */", indentlevel)
+		add_control(instr.p, indentlevel)
+		# Can commit BEQ only after registers 1 and 0 are ready
+		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},0));", indentlevel)
+		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},1));", indentlevel)
+		add_indented_code(f"if (REGP({instr.p},0) > REGP({instr.p},1))", indentlevel)
+		add_indented_code(f"goto {instr.op2};", indentlevel+1)
+		add_indented_code("", indentlevel)
 	elif (instr.op1 == "CBZ"):
 		add_indented_code("/* CBZ */", indentlevel)
 		add_control(instr.p, indentlevel)
+		# Shouldnt this be CREG? but then the litmus test e.g. RV+2+2W+rfi+ctrls.litmus fails
 		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},{instr.op2}));", indentlevel)
 		add_indented_code(f"if (REGP({instr.p},{instr.op2}) == 0)", indentlevel)
 		add_indented_code(f"goto {instr.op3};", indentlevel+1)
@@ -888,9 +895,15 @@ def add_aci_instruction(instr, indentlevel=0):
 	elif (instr.op1 == "CBNZ"):
 		add_indented_code("/* CBNZ */", indentlevel)
 		add_control(instr.p, indentlevel)
+		# Shouldnt this be CREG? but then the litmus test e.g. RV+2+2W+rfi+ctrls.litmus fails
 		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},{instr.op2}));", indentlevel)
 		add_indented_code(f"if (REGP({instr.p},{instr.op2}) != 0)", indentlevel)
 		add_indented_code(f"goto {instr.op3};", indentlevel+1)
+		add_indented_code("", indentlevel)
+	elif (instr.op1 == "B"):
+		add_indented_code("/* B */", indentlevel)
+		add_control(instr.p, indentlevel)
+		add_indented_code(f"goto {instr.op2};", indentlevel)
 		add_indented_code("", indentlevel)
 
 
@@ -945,7 +958,7 @@ def translate_code(indentlevel=0):
 	add_indented_code("return 0;", indentlevel+1)
 	add_indented_code("}", indentlevel)
 
-parse_from_litmus(infile)
+parse_test(indir)
 translate_code()
 write_translated_code()
 

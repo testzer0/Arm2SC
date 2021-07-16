@@ -5,9 +5,9 @@
 // done[2]: whether the processes are done, addresses 3 and 4
 //
 
-// check if either b could be != 6 (the gcd)
-USEOR
-3 : 0
-4 : 0
+// check if both a and b could be != 6 (the gcd)
+// USEOR
+3 : 1
+4 : 1
 not 0 : 6
 not 1 : 6

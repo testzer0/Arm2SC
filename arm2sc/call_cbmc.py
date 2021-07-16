@@ -6,9 +6,15 @@ lines = ["emptyline"]
 if len(sys.argv) == 1:
 	file = os.path.join(os.getcwd(),'arm2sc/translated.c')
 	fname = "translated.c"
+	delname = "del.txt"
+elif len(sys.argv) == 2:
+	file = os.path.join(os.getcwd(),'arm2sc/'+sys.argv[1])
+	fname = sys.argv[1]
+	delname = "del.txt"
 else:
 	file = os.path.join(os.getcwd(),'arm2sc/'+sys.argv[1])
 	fname = sys.argv[1]
+	delname = sys.argv[2]
 
 with open(file) as f:
 	for line in f.readlines():
@@ -36,5 +42,5 @@ if len(names) != 0:
 		cmd2 += f"{name}:{nunwind},"
 	cmd2 = cmd2[:-1]
 
-# cmd2 += " --trace > del.txt"
+# cmd2 += f" --trace > {delname}"
 os.system(cmd2)

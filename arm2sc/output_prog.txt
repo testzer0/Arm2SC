@@ -1,38 +1,37 @@
-burns_safe1 : GOT safe/unsatisfiable 		in 71.53688154600013 seconds
-burns_unsafe1 : GOT unsafe/satisfiable 		in 5.954525256999659 seconds
-burns_unsafe2 : GOT unsafe/satisfiable 		in 6.538031057000353 seconds
-burns_unsafe3 : GOT unsafe/satisfiable 		in 6.840163146000123 seconds
-burns_unsafe4 : GOT unsafe/satisfiable 		in 13.64800522700034 seconds
-burns_unsafe5 : GOT unsafe/satisfiable 		in 18.581867884000076 seconds
-dekker_safe1 : GOT safe/unsatisfiable 		in 114.04692587599993 seconds
-dekker_unsafe1 : GOT unsafe/satisfiable 		in 21.00110523100011 seconds
-dekker_unsafe2 : GOT unsafe/satisfiable 		in 78.86431537499993 seconds
-dekker_unsafe3 : GOT unsafe/satisfiable 		in 28.20245216000012 seconds
-dijkstra_safe1 : GOT safe/unsatisfiable 		in 14.182945270000346 seconds
-dijkstra_unsafe1 : GOT unsafe/satisfiable 		in 8.740036234999934 seconds
-dijkstra_unsafe2 : GOT unsafe/satisfiable 		in 11.655096951999894 seconds
-dijkstra_unsafe3 : GOT unsafe/satisfiable 		in 18.459470353999677 seconds
-fibbench_safe1 : GOT safe/unsatisfiable 		in 149.49363291200007 seconds
-fibbench_unsafe1 : GOT unsafe/satisfiable 		in 104.29575363499998 seconds
-nolocking_unsafe1 : GOT unsafe/satisfiable 		in 0.1981209260002288 seconds
-optimistic3_safe1 : GOT safe/unsatisfiable 		in 59.67870739800037 seconds
-peterson_safe1 : GOT safe/unsatisfiable 		in 1.8192805970002155 seconds
-peterson_unsafe1 : GOT unsafe/satisfiable 		in 1.3627649160002875 seconds
-peterson_unsafe2 : GOT unsafe/satisfiable 		in 1.6408486989998892 seconds
-pgsql_safe1 : GOT safe/unsatisfiable 		in 303.040079893 seconds
-pgsql_unsafe1 : GOT unsafe/satisfiable 		in 219.3932494010005 seconds
-pagesql_bound_unsafe1 : GOT safe/unsatisfiable 		in 0.08424851600011607 seconds
-singleton_safe1 : GOT safe/unsatisfiable 		in 30.66659270299988 seconds
-sigma_unsafe1 : GOT unsafe/satisfiable 		in 4.5305684570002995 seconds
-STXlock_safe1 : GOT safe/unsatisfiable 		in 9.2644017169996 seconds
-STXlock_unsafe1 : GOT unsafe/satisfiable 		in 3.9173503920001167 seconds
-STXlock_unsafe2 : GOT unsafe/satisfiable 		in 3.8870775219993448 seconds
-STXlock_unsafe3 : GOT unsafe/satisfiable 		in 3.559237223999844 seconds
-szymanski_safe1 : GOT safe/unsatisfiable 		in 4.328417334000733 seconds
-szymanski_unsafe1 : GOT unsafe/satisfiable 		in 4.009941912000613 seconds
-wronglock1_unsafe1 : GOT unsafe/satisfiable 		in 0.5580183260008198 seconds
-wrongpc1_unsafe1 : GOT unsafe/satisfiable 		in 16.083225215999846 seconds
-queue_safe1 : GOT safe/unsatisfiable 		in 153.06411183599994 seconds
-queue_unsafe1 : GOT unsafe/satisfiable 		in 75.82598963499913 seconds
-gcd_unsafe1 : GOT unsafe/satisfiable		in 433.374 seconds [manually entered]
-apr2 : timeout [manually entered]
+burns_safe1 : GOT safe/unsatisfiable..............in 23.112486821999482 seconds
+burns_unsafe1 : GOT unsafe/satisfiable............in 7.13772966400029 seconds
+burns_unsafe2 : GOT unsafe/satisfiable............in 6.797987927000577 seconds
+burns_unsafe3 : GOT unsafe/satisfiable............in 6.114358015000107 seconds
+burns_unsafe4 : GOT unsafe/satisfiable............in 12.938548978001563 seconds
+burns_unsafe5 : GOT unsafe/satisfiable............in 67.90888802100017 seconds
+dekker_safe1 : GOT safe/unsatisfiable.............in 133.30626926500008 seconds
+dekker_unsafe1 : GOT unsafe/satisfiable...........in 34.63233188599952 seconds
+dekker_unsafe2 : GOT unsafe/satisfiable...........in 33.09267732199987 seconds
+dekker_unsafe3 : GOT unsafe/satisfiable...........in 47.564460584999324 seconds
+dijkstra_safe1 : GOT safe/unsatisfiable...........in 16.502586742999483 seconds
+dijkstra_unsafe1 : GOT unsafe/satisfiable.........in 10.885860447000596 seconds
+dijkstra_unsafe2 : GOT unsafe/satisfiable.........in 12.556299579999177 seconds
+dijkstra_unsafe3 : GOT unsafe/satisfiable.........in 20.17348771899924 seconds
+fibbench_safe1 : GOT safe/unsatisfiable...........in 235.60028749400044 seconds
+fibbench_unsafe1 : GOT unsafe/satisfiable.........in 152.47631553700012 seconds
+nolocking_unsafe1 : GOT unsafe/satisfiable........in 1.8688120500009973 seconds
+optimistic3_safe1 : GOT safe/unsatisfiable........in 83.28615107199948 seconds
+peterson_safe1 : GOT safe/unsatisfiable...........in 2.1470898229999875 seconds
+peterson_unsafe1 : GOT unsafe/satisfiable.........in 1.5795758759995806 seconds
+peterson_unsafe2 : GOT unsafe/satisfiable.........in 2.0072730890005914 seconds
+pgsql_safe1 : GOT safe/unsatisfiable..............in 211.34121278899875 seconds
+pgsql_unsafe1 : GOT unsafe/satisfiable............in 201.30903708200094 seconds
+pgsql_bound_safe1 : GOT safe/unsatisfiable........in 15.864568621000217 seconds
+pgsql_bound_unsafe1 : GOT unsafe/satisfiable......in 16.47504019600092 seconds
+singleton_safe1 : GOT safe/unsatisfiable..........in 66.05237814999964 seconds
+sigma_unsafe1 : GOT unsafe/satisfiable............in 6.429549473999941 seconds
+STXlock_safe1 : GOT safe/unsatisfiable............in 15.180712781999318 seconds
+STXlock_unsafe1 : GOT unsafe/satisfiable..........in 8.132596780000313 seconds
+STXlock_unsafe2 : GOT safe/unsatisfiable..........in 15.26137646800089 seconds
+STXlock_unsafe3 : GOT unsafe/satisfiable..........in 4.418617588000416 seconds
+szymanski_safe1 : GOT safe/unsatisfiable..........in 3.8034355170002527 seconds
+szymanski_unsafe1 : GOT unsafe/satisfiable........in 3.533005659999617 seconds
+wronglock1_unsafe1 : GOT unsafe/satisfiable.......in 0.9188610910005082 seconds
+wrongpc1_unsafe1 : GOT unsafe/satisfiable.........in 17.346096410999962 seconds
+queue_safe1 : GOT safe/unsatisfiable..............in 83.09099258999959 seconds
+queue_unsafe1 : GOT unsafe/satisfiable............in 38.30651740999929 seconds

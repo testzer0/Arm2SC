@@ -8,16 +8,18 @@ tests = ["burns_safe1", "burns_unsafe1", "burns_unsafe2", "burns_unsafe3", "burn
 		 "dijkstra_safe1", "dijkstra_unsafe1", "dijkstra_unsafe2", "dijkstra_unsafe3",  \
 		 "fibbench_safe1", "fibbench_unsafe1", "nolocking_unsafe1", "optimistic3_safe1",  \
 		 "peterson_safe1", "peterson_unsafe1", "peterson_unsafe2", "pgsql_safe1", "pgsql_unsafe1",  \
-		 "pgsql_bound_safe1", "pagesql_bound_unsafe1", "singleton_safe1", "sigma_unsafe1",  \
+		 "pgsql_bound_safe1", "pgsql_bound_unsafe1", "singleton_safe1", "sigma_unsafe1",  \
 		 "STXlock_safe1", "STXlock_unsafe1", "STXlock_unsafe2", "STXlock_unsafe3",  \
 		 "szymanski_safe1", "szymanski_unsafe1", "wronglock1_unsafe1", "wrongpc1_unsafe1",  \
-		 "queue_safe1", "queue_unsafe1", "apr2"]
+		 "queue_safe1", "queue_unsafe1", "gcd", "gcd_unsafe1", "apr2"]
 
 resultdict = {}
 timedict = {}
 outfile = os.path.join(os.getcwd(),'arm2sc/output_prog.txt')
 
 for test in tests:
+	if test != "gcd":
+		continue
 	cmd = f"python3 arm2sc/translate_prog.py {test} translated.c && python3 arm2sc/call_cbmc.py 2>/dev/null"
 	then = timer()
 	try:
@@ -43,6 +45,7 @@ for test in tests:
 	st = st.ljust(50,'.') + f"in {timedict[test]} seconds"
 	print(st)
 
+quit()
 with open(outfile, 'w+') as f:
 	for test, result in resultdict.items():
 		stmt = f"{test} : GOT {resultdict[test]}"

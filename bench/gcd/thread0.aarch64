@@ -13,10 +13,10 @@
 // release the lock
 
 repeat:
-	DMB SY 							;
 	MOV R1,#2						;
 	MOV R2,#1 						;
 trylock:
+	DMB SY 							;
 	LDAXR R0,[R1]					;
 	CBNZ R0,trylock					;
 	STLXR R3,R2,[R1]				;

@@ -13,7 +13,7 @@ int nu[NPROC*ADDRSIZE];
 int cR[NPROC*ADDRSIZE], iW[NPROC*ADDRSIZE],cW[NPROC*ADDRSIZE];
 int cL[NPROC*NREGS], iS[NPROC*ADDRSIZE],cS[NPROC*ADDRSIZE];
 int iReg[NPROC*NREGS], cReg[NPROC*NREGS];
-int cDY[NPROC], cDS[NPROC], cDL[NPROC], cISB[NPROC], iAddr[NPROC];
+int cDY[NPROC], cDS[NPROC], cDL[NPROC], cISB[NPROC], cAddr[NPROC];
 int ctrl[NPROC], active[NCONTEXT];
 int old_cDY, old_cW, old_cR, new_cW, new_iReg, new_cReg;
 
@@ -32,7 +32,6 @@ int old_cDY, old_cW, old_cR, new_cW, new_iReg, new_cReg;
 #define CL(p,r) cL[p*NREGS+r]
 #define IS(p,x) iS[p*ADDRSIZE+x]
 #define CS(p,x) cS[p*ADDRSIZE+x]
-#define IREG(p,r) iReg[p*NREGS+r]
 #define CREG(p,r) cReg[p*NREGS+r]
 #define ASSUME(stmt) __CPROVER_assume(stmt)
 #define ASSERT(stmt) __CPROVER_assert(stmt, "Assert error")
@@ -64,11 +63,10 @@ int main(int argc, char **argv)
         }
         for (int r = 0; r < NREGS; r++) {
             CL(p,r) = 0;
-            IREG(p,r) = 0;
             CREG(p,r) = 0;
         }
         ctrl[p] = 0;
-        iAddr[p] = 0;
+        cAddr[p] = 0;
         cDY[p] = 0;
         cISB[p] = 0;
         cDS[p] = 0;
@@ -98,6 +96,25 @@ int main(int argc, char **argv)
     
     // Process 0 BEGIN
 p0repeat:
+    /* assign */
+    // Guess
+    new_cReg = get_rng(0,NCONTEXT-1);
+    // Check
+    ASSUME(active[new_cReg] == 0);
+    // Update
+    CREG(0,4) = new_cReg;
+    REGP(0,4) = 2;
+    
+    /* assign */
+    // Guess
+    new_cReg = get_rng(0,NCONTEXT-1);
+    // Check
+    ASSUME(active[new_cReg] == 0);
+    // Update
+    CREG(0,5) = new_cReg;
+    REGP(0,5) = 1;
+    
+p0trylock:
     /* dmb.sy */
     // Guess
     old_cDY = cDY[0];
@@ -111,45 +128,15 @@ p0repeat:
         ASSUME(cDY[0] >= CR(0,x));
     }
     
-    /* assign */
-    // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
-    new_cReg = get_rng(0,NCONTEXT-1);
-    // Check
-    ASSUME(active[new_iReg] == 0);
-    ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
-    // Update
-    IREG(0,4) = new_iReg;
-    CREG(0,4) = new_cReg;
-    REGP(0,4) = 2;
-    
-    /* assign */
-    // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
-    new_cReg = get_rng(0,NCONTEXT-1);
-    // Check
-    ASSUME(active[new_iReg] == 0);
-    ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
-    // Update
-    IREG(0,5) = new_iReg;
-    CREG(0,5) = new_cReg;
-    REGP(0,5) = 1;
-    
-p0trylock:
     /* LDAX */
     // Guess
-    CR(0,REGP(0,4)) = get_rng(0,NCONTEXT-1);
     old_cR = CR(0,REGP(0,4));
     CR(0,REGP(0,4)) = get_rng(0,NCONTEXT-1);
-    IREG(0,3) = CR(0,REGP(0,4));
     CREG(0,3) = CR(0,REGP(0,4));
-    CL(0,3) = CR(0,REGP(0,4));
     // Check
     ASSUME(active[CR(0,REGP(0,4))] == 0);
     ASSUME(CR(0,REGP(0,4)) >= IW(0,REGP(0,4)));
-    ASSUME(CR(0,REGP(0,4)) >= IREG(0,4));
+    ASSUME(CR(0,REGP(0,4)) >= CREG(0,4));
     ASSUME(CR(0,REGP(0,4)) >= max(cDY[0],cISB[0]));
     ASSUME(CR(0,REGP(0,4)) >= cDL[0]);
     for (int rdp = 0; rdp < NREGS; rdp++) {
@@ -159,7 +146,8 @@ p0trylock:
         ASSUME(CR(0,REGP(0,4)) >= CS(0,x));
     }
     // Update
-    iAddr[0] = max(iAddr[0], IREG(0,4));
+    CL(0,3) = CR(0,REGP(0,4));
+    cAddr[0] = max(cAddr[0], CREG(0,4));
     if (CR(0,REGP(0,4)) < CW(0,REGP(0,4))) {
         REGP(0,3) = NU(0,REGP(0,4));
     } else {
@@ -171,7 +159,7 @@ p0trylock:
     ctrl[0] = ctrl[0] + get_rng(0,NCONTEXT-1);
     ASSUME(ctrl[0] < NCONTEXT);
     
-    ASSUME(ctrl[0] >= IREG(0,3));
+    ASSUME(ctrl[0] >= CREG(0,3));
     if (REGP(0,3) != 0)
         goto p0trylock;
     
@@ -186,12 +174,12 @@ p0trylock:
     for (int x = 0; x < ADDRSIZE; x++) {
         ASSUME(new_cW >= max(CR(0,x),CW(0,x)));
     }
-    ASSUME(new_cW >= max(CREG(0,5),IREG(0,4)));
+    ASSUME(new_cW >= max(CREG(0,5),CREG(0,4)));
     ASSUME(new_cW >= max(old_cW,CR(0,REGP(0,4))));
     ASSUME(new_cW >= ctrl[0]);
-    ASSUME(new_cW >= iAddr[0]);
+    ASSUME(new_cW >= cAddr[0]);
     // Update
-    iAddr[0] = max(iAddr[0], IREG(0,4));
+    cAddr[0] = max(cAddr[0], CREG(0,4));
     if (DELTA(REGP(0,4),new_cW) == 0) {
         MU(REGP(0,4),new_cW) = REGP(0,5);
         NU(0,REGP(0,4)) = REGP(0,5);
@@ -204,14 +192,13 @@ p0trylock:
     } else {
         REGP(0,6) = 1;
     }
-    IREG(0,6) = new_cW;
     CREG(0,6) = new_cW;
     
     /* CBNZ */
     ctrl[0] = ctrl[0] + get_rng(0,NCONTEXT-1);
     ASSUME(ctrl[0] < NCONTEXT);
     
-    ASSUME(ctrl[0] >= IREG(0,6));
+    ASSUME(ctrl[0] >= CREG(0,6));
     if (REGP(0,6) != 0)
         goto p0trylock;
     
@@ -230,14 +217,10 @@ p0trylock:
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 0);
     ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
     // Update
-    IREG(0,6) = new_iReg;
     CREG(0,6) = new_cReg;
     REGP(0,6) = 0;
     
@@ -245,19 +228,18 @@ p0trylock:
     // Guess
     old_cR = CR(0,REGP(0,6));
     CR(0,REGP(0,6)) = get_rng(0,NCONTEXT-1);
-    IREG(0,3) = CR(0,REGP(0,6));
     CREG(0,3) = CR(0,REGP(0,6));
     // Check
     ASSUME(active[CR(0,REGP(0,6))] == 0);
     ASSUME(CR(0,REGP(0,6)) >= IW(0,REGP(0,6)));
-    ASSUME(CR(0,REGP(0,6)) >= IREG(0,6));
+    ASSUME(CR(0,REGP(0,6)) >= CREG(0,6));
     ASSUME(CR(0,REGP(0,6)) >= max(cDY[0],cISB[0]));
     ASSUME(CR(0,REGP(0,6)) >= cDL[0]);
     for (int rdp = 0; rdp < NREGS; rdp++) {
         ASSUME(CR(0,REGP(0,6)) >= CL(0,rdp));
     }
     // Update
-    iAddr[0] = max(iAddr[0], IREG(0,6));
+    cAddr[0] = max(cAddr[0], CREG(0,6));
     if (CR(0,REGP(0,6)) < CW(0,REGP(0,6))) {
         REGP(0,3) = NU(0,REGP(0,6));
     } else {
@@ -268,19 +250,18 @@ p0trylock:
     // Guess
     old_cR = CR(0,REGP(0,5));
     CR(0,REGP(0,5)) = get_rng(0,NCONTEXT-1);
-    IREG(0,4) = CR(0,REGP(0,5));
     CREG(0,4) = CR(0,REGP(0,5));
     // Check
     ASSUME(active[CR(0,REGP(0,5))] == 0);
     ASSUME(CR(0,REGP(0,5)) >= IW(0,REGP(0,5)));
-    ASSUME(CR(0,REGP(0,5)) >= IREG(0,5));
+    ASSUME(CR(0,REGP(0,5)) >= CREG(0,5));
     ASSUME(CR(0,REGP(0,5)) >= max(cDY[0],cISB[0]));
     ASSUME(CR(0,REGP(0,5)) >= cDL[0]);
     for (int rdp = 0; rdp < NREGS; rdp++) {
         ASSUME(CR(0,REGP(0,5)) >= CL(0,rdp));
     }
     // Update
-    iAddr[0] = max(iAddr[0], IREG(0,5));
+    cAddr[0] = max(cAddr[0], CREG(0,5));
     if (CR(0,REGP(0,5)) < CW(0,REGP(0,5))) {
         REGP(0,4) = NU(0,REGP(0,5));
     } else {
@@ -289,31 +270,21 @@ p0trylock:
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 0);
-    ASSUME(new_iReg >= IREG(0,3));
     ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
     ASSUME(new_cReg >= CREG(0,3));
     // Update
-    IREG(0,0) = new_iReg;
     CREG(0,0) = new_cReg;
     REGP(0,0) = REGP(0,3);
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 0);
-    ASSUME(new_iReg >= IREG(0,4));
     ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
     ASSUME(new_cReg >= CREG(0,4));
     // Update
-    IREG(0,1) = new_iReg;
     CREG(0,1) = new_cReg;
     REGP(0,1) = REGP(0,4);
     
@@ -321,8 +292,8 @@ p0trylock:
     ctrl[0] = ctrl[0] + get_rng(0,NCONTEXT-1);
     ASSUME(ctrl[0] < NCONTEXT);
     
-    ASSUME(ctrl[0] >= IREG(0,0));
-    ASSUME(ctrl[0] >= IREG(0,1));
+    ASSUME(ctrl[0] >= CREG(0,0));
+    ASSUME(ctrl[0] >= CREG(0,1));
     if (REGP(0,0) == REGP(0,1))
         goto p0done;
     
@@ -330,25 +301,19 @@ p0trylock:
     ctrl[0] = ctrl[0] + get_rng(0,NCONTEXT-1);
     ASSUME(ctrl[0] < NCONTEXT);
     
-    ASSUME(ctrl[0] >= IREG(0,0));
-    ASSUME(ctrl[0] >= IREG(0,1));
+    ASSUME(ctrl[0] >= CREG(0,0));
+    ASSUME(ctrl[0] >= CREG(0,1));
     if (REGP(0,0) > REGP(0,1))
         goto p0greater;
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 0);
-    ASSUME(new_iReg >= IREG(0,4));
-    ASSUME(new_iReg >= IREG(0,3));
     ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
     ASSUME(new_cReg >= CREG(0,4));
     ASSUME(new_cReg >= CREG(0,3));
     // Update
-    IREG(0,5) = new_iReg;
     CREG(0,5) = new_cReg;
     REGP(0,5) = (REGP(0,4) - REGP(0,3));
     
@@ -361,18 +326,12 @@ p0trylock:
 p0greater:
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 0);
-    ASSUME(new_iReg >= IREG(0,3));
-    ASSUME(new_iReg >= IREG(0,4));
     ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
     ASSUME(new_cReg >= CREG(0,3));
     ASSUME(new_cReg >= CREG(0,4));
     // Update
-    IREG(0,5) = new_iReg;
     CREG(0,5) = new_cReg;
     REGP(0,5) = (REGP(0,3) - REGP(0,4));
     
@@ -397,7 +356,7 @@ p0skip:
     CW(0,REGP(0,6)) = get_rng(0,NCONTEXT-1);
     // Check
     ASSUME(active[IW(0,REGP(0,6))] == 0);
-    ASSUME(IW(0,REGP(0,6)) >= max(IREG(0,5),IREG(0,6)));
+    ASSUME(IW(0,REGP(0,6)) >= max(CREG(0,5),CREG(0,6)));
     ASSUME(IW(0,REGP(0,6)) >= max(cDY[0],cISB[0]));
     ASSUME(IW(0,REGP(0,6)) >= max(cDS[0],cDL[0]));
     for (int r = 0; r < NREGS; r++) {
@@ -405,12 +364,11 @@ p0skip:
     }
     ASSUME(CW(0,REGP(0,6)) >= IW(0, REGP(0,6)));
     ASSUME(active[CW(0,REGP(0,6))] == 0);
-    ASSUME(CW(0,REGP(0,6)) >= max(CREG(0,5),IREG(0,6)));
     ASSUME(CW(0,REGP(0,6)) >= max(old_cW,CR(0,REGP(0,6))));
     ASSUME(CW(0,REGP(0,6)) >= ctrl[0]);
-    ASSUME(CW(0,REGP(0,6)) >= iAddr[0]);
+    ASSUME(CW(0,REGP(0,6)) >= cAddr[0]);
     // Update
-    iAddr[0] = max(iAddr[0], IREG(0,6));
+    cAddr[0] = max(cAddr[0], CREG(0,6));
     MU(REGP(0,6),CW(0,REGP(0,6))) = REGP(0,5);
     NU(0,REGP(0,6)) = REGP(0,5);
     DELTA(REGP(0,6),CW(0,REGP(0,6))) = -1;
@@ -430,27 +388,19 @@ p0skip:
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 0);
     ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
     // Update
-    IREG(0,3) = new_iReg;
     CREG(0,3) = new_cReg;
     REGP(0,3) = 0;
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 0);
     ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
     // Update
-    IREG(0,4) = new_iReg;
     CREG(0,4) = new_cReg;
     REGP(0,4) = 2;
     
@@ -461,7 +411,7 @@ p0skip:
     CW(0,REGP(0,4)) = get_rng(0,NCONTEXT-1);
     // Check
     ASSUME(active[IW(0,REGP(0,4))] == 0);
-    ASSUME(IW(0,REGP(0,4)) >= max(IREG(0,3),IREG(0,4)));
+    ASSUME(IW(0,REGP(0,4)) >= max(CREG(0,3),CREG(0,4)));
     ASSUME(IW(0,REGP(0,4)) >= max(cDY[0],cISB[0]));
     ASSUME(IW(0,REGP(0,4)) >= max(cDS[0],cDL[0]));
     for (int r = 0; r < NREGS; r++) {
@@ -469,12 +419,11 @@ p0skip:
     }
     ASSUME(CW(0,REGP(0,4)) >= IW(0, REGP(0,4)));
     ASSUME(active[CW(0,REGP(0,4))] == 0);
-    ASSUME(CW(0,REGP(0,4)) >= max(CREG(0,3),IREG(0,4)));
     ASSUME(CW(0,REGP(0,4)) >= max(old_cW,CR(0,REGP(0,4))));
     ASSUME(CW(0,REGP(0,4)) >= ctrl[0]);
-    ASSUME(CW(0,REGP(0,4)) >= iAddr[0]);
+    ASSUME(CW(0,REGP(0,4)) >= cAddr[0]);
     // Update
-    iAddr[0] = max(iAddr[0], IREG(0,4));
+    cAddr[0] = max(cAddr[0], CREG(0,4));
     MU(REGP(0,4),CW(0,REGP(0,4))) = REGP(0,3);
     NU(0,REGP(0,4)) = REGP(0,3);
     DELTA(REGP(0,4),CW(0,REGP(0,4))) = -1;
@@ -501,27 +450,19 @@ p0done:
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 0);
     ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
     // Update
-    IREG(0,3) = new_iReg;
     CREG(0,3) = new_cReg;
     REGP(0,3) = 0;
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 0);
     ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
     // Update
-    IREG(0,4) = new_iReg;
     CREG(0,4) = new_cReg;
     REGP(0,4) = 2;
     
@@ -532,7 +473,7 @@ p0done:
     CW(0,REGP(0,4)) = get_rng(0,NCONTEXT-1);
     // Check
     ASSUME(active[IW(0,REGP(0,4))] == 0);
-    ASSUME(IW(0,REGP(0,4)) >= max(IREG(0,3),IREG(0,4)));
+    ASSUME(IW(0,REGP(0,4)) >= max(CREG(0,3),CREG(0,4)));
     ASSUME(IW(0,REGP(0,4)) >= max(cDY[0],cISB[0]));
     ASSUME(IW(0,REGP(0,4)) >= max(cDS[0],cDL[0]));
     for (int r = 0; r < NREGS; r++) {
@@ -540,39 +481,30 @@ p0done:
     }
     ASSUME(CW(0,REGP(0,4)) >= IW(0, REGP(0,4)));
     ASSUME(active[CW(0,REGP(0,4))] == 0);
-    ASSUME(CW(0,REGP(0,4)) >= max(CREG(0,3),IREG(0,4)));
     ASSUME(CW(0,REGP(0,4)) >= max(old_cW,CR(0,REGP(0,4))));
     ASSUME(CW(0,REGP(0,4)) >= ctrl[0]);
-    ASSUME(CW(0,REGP(0,4)) >= iAddr[0]);
+    ASSUME(CW(0,REGP(0,4)) >= cAddr[0]);
     // Update
-    iAddr[0] = max(iAddr[0], IREG(0,4));
+    cAddr[0] = max(cAddr[0], CREG(0,4));
     MU(REGP(0,4),CW(0,REGP(0,4))) = REGP(0,3);
     NU(0,REGP(0,4)) = REGP(0,3);
     DELTA(REGP(0,4),CW(0,REGP(0,4))) = -1;
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 0);
     ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
     // Update
-    IREG(0,3) = new_iReg;
     CREG(0,3) = new_cReg;
     REGP(0,3) = 1;
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 0);
     ASSUME(active[new_cReg] == 0);
-    ASSUME(new_cReg >= max(ctrl[0],new_iReg));
     // Update
-    IREG(0,4) = new_iReg;
     CREG(0,4) = new_cReg;
     REGP(0,4) = 3;
     
@@ -583,7 +515,7 @@ p0done:
     CW(0,REGP(0,4)) = get_rng(0,NCONTEXT-1);
     // Check
     ASSUME(active[IW(0,REGP(0,4))] == 0);
-    ASSUME(IW(0,REGP(0,4)) >= max(IREG(0,3),IREG(0,4)));
+    ASSUME(IW(0,REGP(0,4)) >= max(CREG(0,3),CREG(0,4)));
     ASSUME(IW(0,REGP(0,4)) >= max(cDY[0],cISB[0]));
     ASSUME(IW(0,REGP(0,4)) >= max(cDS[0],cDL[0]));
     for (int r = 0; r < NREGS; r++) {
@@ -591,12 +523,11 @@ p0done:
     }
     ASSUME(CW(0,REGP(0,4)) >= IW(0, REGP(0,4)));
     ASSUME(active[CW(0,REGP(0,4))] == 0);
-    ASSUME(CW(0,REGP(0,4)) >= max(CREG(0,3),IREG(0,4)));
     ASSUME(CW(0,REGP(0,4)) >= max(old_cW,CR(0,REGP(0,4))));
     ASSUME(CW(0,REGP(0,4)) >= ctrl[0]);
-    ASSUME(CW(0,REGP(0,4)) >= iAddr[0]);
+    ASSUME(CW(0,REGP(0,4)) >= cAddr[0]);
     // Update
-    iAddr[0] = max(iAddr[0], IREG(0,4));
+    cAddr[0] = max(cAddr[0], CREG(0,4));
     MU(REGP(0,4),CW(0,REGP(0,4))) = REGP(0,3);
     NU(0,REGP(0,4)) = REGP(0,3);
     DELTA(REGP(0,4),CW(0,REGP(0,4))) = -1;
@@ -605,6 +536,25 @@ p0done:
     
     // Process 1 BEGIN
 p1repeat:
+    /* assign */
+    // Guess
+    new_cReg = get_rng(0,NCONTEXT-1);
+    // Check
+    ASSUME(active[new_cReg] == 1);
+    // Update
+    CREG(1,4) = new_cReg;
+    REGP(1,4) = 2;
+    
+    /* assign */
+    // Guess
+    new_cReg = get_rng(0,NCONTEXT-1);
+    // Check
+    ASSUME(active[new_cReg] == 1);
+    // Update
+    CREG(1,5) = new_cReg;
+    REGP(1,5) = 2;
+    
+p1trylock:
     /* dmb.sy */
     // Guess
     old_cDY = cDY[1];
@@ -618,45 +568,15 @@ p1repeat:
         ASSUME(cDY[1] >= CR(1,x));
     }
     
-    /* assign */
-    // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
-    new_cReg = get_rng(0,NCONTEXT-1);
-    // Check
-    ASSUME(active[new_iReg] == 1);
-    ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
-    // Update
-    IREG(1,4) = new_iReg;
-    CREG(1,4) = new_cReg;
-    REGP(1,4) = 2;
-    
-    /* assign */
-    // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
-    new_cReg = get_rng(0,NCONTEXT-1);
-    // Check
-    ASSUME(active[new_iReg] == 1);
-    ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
-    // Update
-    IREG(1,5) = new_iReg;
-    CREG(1,5) = new_cReg;
-    REGP(1,5) = 2;
-    
-p1trylock:
     /* LDAX */
     // Guess
-    CR(1,REGP(1,4)) = get_rng(0,NCONTEXT-1);
     old_cR = CR(1,REGP(1,4));
     CR(1,REGP(1,4)) = get_rng(0,NCONTEXT-1);
-    IREG(1,3) = CR(1,REGP(1,4));
     CREG(1,3) = CR(1,REGP(1,4));
-    CL(1,3) = CR(1,REGP(1,4));
     // Check
     ASSUME(active[CR(1,REGP(1,4))] == 1);
     ASSUME(CR(1,REGP(1,4)) >= IW(1,REGP(1,4)));
-    ASSUME(CR(1,REGP(1,4)) >= IREG(1,4));
+    ASSUME(CR(1,REGP(1,4)) >= CREG(1,4));
     ASSUME(CR(1,REGP(1,4)) >= max(cDY[1],cISB[1]));
     ASSUME(CR(1,REGP(1,4)) >= cDL[1]);
     for (int rdp = 0; rdp < NREGS; rdp++) {
@@ -666,7 +586,8 @@ p1trylock:
         ASSUME(CR(1,REGP(1,4)) >= CS(1,x));
     }
     // Update
-    iAddr[1] = max(iAddr[1], IREG(1,4));
+    CL(1,3) = CR(1,REGP(1,4));
+    cAddr[1] = max(cAddr[1], CREG(1,4));
     if (CR(1,REGP(1,4)) < CW(1,REGP(1,4))) {
         REGP(1,3) = NU(1,REGP(1,4));
     } else {
@@ -678,7 +599,7 @@ p1trylock:
     ctrl[1] = ctrl[1] + get_rng(0,NCONTEXT-1);
     ASSUME(ctrl[1] < NCONTEXT);
     
-    ASSUME(ctrl[1] >= IREG(1,3));
+    ASSUME(ctrl[1] >= CREG(1,3));
     if (REGP(1,3) != 0)
         goto p1trylock;
     
@@ -693,12 +614,12 @@ p1trylock:
     for (int x = 0; x < ADDRSIZE; x++) {
         ASSUME(new_cW >= max(CR(1,x),CW(1,x)));
     }
-    ASSUME(new_cW >= max(CREG(1,5),IREG(1,4)));
+    ASSUME(new_cW >= max(CREG(1,5),CREG(1,4)));
     ASSUME(new_cW >= max(old_cW,CR(1,REGP(1,4))));
     ASSUME(new_cW >= ctrl[1]);
-    ASSUME(new_cW >= iAddr[1]);
+    ASSUME(new_cW >= cAddr[1]);
     // Update
-    iAddr[1] = max(iAddr[1], IREG(1,4));
+    cAddr[1] = max(cAddr[1], CREG(1,4));
     if (DELTA(REGP(1,4),new_cW) == 1) {
         MU(REGP(1,4),new_cW) = REGP(1,5);
         NU(1,REGP(1,4)) = REGP(1,5);
@@ -711,14 +632,13 @@ p1trylock:
     } else {
         REGP(1,6) = 1;
     }
-    IREG(1,6) = new_cW;
     CREG(1,6) = new_cW;
     
     /* CBNZ */
     ctrl[1] = ctrl[1] + get_rng(0,NCONTEXT-1);
     ASSUME(ctrl[1] < NCONTEXT);
     
-    ASSUME(ctrl[1] >= IREG(1,6));
+    ASSUME(ctrl[1] >= CREG(1,6));
     if (REGP(1,6) != 0)
         goto p1trylock;
     
@@ -737,27 +657,19 @@ p1trylock:
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 1);
     ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
     // Update
-    IREG(1,5) = new_iReg;
     CREG(1,5) = new_cReg;
     REGP(1,5) = 0;
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 1);
     ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
     // Update
-    IREG(1,6) = new_iReg;
     CREG(1,6) = new_cReg;
     REGP(1,6) = 1;
     
@@ -765,19 +677,18 @@ p1trylock:
     // Guess
     old_cR = CR(1,REGP(1,5));
     CR(1,REGP(1,5)) = get_rng(0,NCONTEXT-1);
-    IREG(1,3) = CR(1,REGP(1,5));
     CREG(1,3) = CR(1,REGP(1,5));
     // Check
     ASSUME(active[CR(1,REGP(1,5))] == 1);
     ASSUME(CR(1,REGP(1,5)) >= IW(1,REGP(1,5)));
-    ASSUME(CR(1,REGP(1,5)) >= IREG(1,5));
+    ASSUME(CR(1,REGP(1,5)) >= CREG(1,5));
     ASSUME(CR(1,REGP(1,5)) >= max(cDY[1],cISB[1]));
     ASSUME(CR(1,REGP(1,5)) >= cDL[1]);
     for (int rdp = 0; rdp < NREGS; rdp++) {
         ASSUME(CR(1,REGP(1,5)) >= CL(1,rdp));
     }
     // Update
-    iAddr[1] = max(iAddr[1], IREG(1,5));
+    cAddr[1] = max(cAddr[1], CREG(1,5));
     if (CR(1,REGP(1,5)) < CW(1,REGP(1,5))) {
         REGP(1,3) = NU(1,REGP(1,5));
     } else {
@@ -788,19 +699,18 @@ p1trylock:
     // Guess
     old_cR = CR(1,REGP(1,6));
     CR(1,REGP(1,6)) = get_rng(0,NCONTEXT-1);
-    IREG(1,4) = CR(1,REGP(1,6));
     CREG(1,4) = CR(1,REGP(1,6));
     // Check
     ASSUME(active[CR(1,REGP(1,6))] == 1);
     ASSUME(CR(1,REGP(1,6)) >= IW(1,REGP(1,6)));
-    ASSUME(CR(1,REGP(1,6)) >= IREG(1,6));
+    ASSUME(CR(1,REGP(1,6)) >= CREG(1,6));
     ASSUME(CR(1,REGP(1,6)) >= max(cDY[1],cISB[1]));
     ASSUME(CR(1,REGP(1,6)) >= cDL[1]);
     for (int rdp = 0; rdp < NREGS; rdp++) {
         ASSUME(CR(1,REGP(1,6)) >= CL(1,rdp));
     }
     // Update
-    iAddr[1] = max(iAddr[1], IREG(1,6));
+    cAddr[1] = max(cAddr[1], CREG(1,6));
     if (CR(1,REGP(1,6)) < CW(1,REGP(1,6))) {
         REGP(1,4) = NU(1,REGP(1,6));
     } else {
@@ -809,31 +719,21 @@ p1trylock:
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 1);
-    ASSUME(new_iReg >= IREG(1,3));
     ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
     ASSUME(new_cReg >= CREG(1,3));
     // Update
-    IREG(1,0) = new_iReg;
     CREG(1,0) = new_cReg;
     REGP(1,0) = REGP(1,3);
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 1);
-    ASSUME(new_iReg >= IREG(1,4));
     ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
     ASSUME(new_cReg >= CREG(1,4));
     // Update
-    IREG(1,1) = new_iReg;
     CREG(1,1) = new_cReg;
     REGP(1,1) = REGP(1,4);
     
@@ -841,8 +741,8 @@ p1trylock:
     ctrl[1] = ctrl[1] + get_rng(0,NCONTEXT-1);
     ASSUME(ctrl[1] < NCONTEXT);
     
-    ASSUME(ctrl[1] >= IREG(1,0));
-    ASSUME(ctrl[1] >= IREG(1,1));
+    ASSUME(ctrl[1] >= CREG(1,0));
+    ASSUME(ctrl[1] >= CREG(1,1));
     if (REGP(1,0) == REGP(1,1))
         goto p1done;
     
@@ -850,25 +750,19 @@ p1trylock:
     ctrl[1] = ctrl[1] + get_rng(0,NCONTEXT-1);
     ASSUME(ctrl[1] < NCONTEXT);
     
-    ASSUME(ctrl[1] >= IREG(1,0));
-    ASSUME(ctrl[1] >= IREG(1,1));
+    ASSUME(ctrl[1] >= CREG(1,0));
+    ASSUME(ctrl[1] >= CREG(1,1));
     if (REGP(1,0) > REGP(1,1))
         goto p1greater;
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 1);
-    ASSUME(new_iReg >= IREG(1,4));
-    ASSUME(new_iReg >= IREG(1,3));
     ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
     ASSUME(new_cReg >= CREG(1,4));
     ASSUME(new_cReg >= CREG(1,3));
     // Update
-    IREG(1,5) = new_iReg;
     CREG(1,5) = new_cReg;
     REGP(1,5) = (REGP(1,4) - REGP(1,3));
     
@@ -881,18 +775,12 @@ p1trylock:
 p1greater:
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 1);
-    ASSUME(new_iReg >= IREG(1,3));
-    ASSUME(new_iReg >= IREG(1,4));
     ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
     ASSUME(new_cReg >= CREG(1,3));
     ASSUME(new_cReg >= CREG(1,4));
     // Update
-    IREG(1,5) = new_iReg;
     CREG(1,5) = new_cReg;
     REGP(1,5) = (REGP(1,3) - REGP(1,4));
     
@@ -917,7 +805,7 @@ p1skip:
     CW(1,REGP(1,6)) = get_rng(0,NCONTEXT-1);
     // Check
     ASSUME(active[IW(1,REGP(1,6))] == 1);
-    ASSUME(IW(1,REGP(1,6)) >= max(IREG(1,5),IREG(1,6)));
+    ASSUME(IW(1,REGP(1,6)) >= max(CREG(1,5),CREG(1,6)));
     ASSUME(IW(1,REGP(1,6)) >= max(cDY[1],cISB[1]));
     ASSUME(IW(1,REGP(1,6)) >= max(cDS[1],cDL[1]));
     for (int r = 0; r < NREGS; r++) {
@@ -925,12 +813,11 @@ p1skip:
     }
     ASSUME(CW(1,REGP(1,6)) >= IW(1, REGP(1,6)));
     ASSUME(active[CW(1,REGP(1,6))] == 1);
-    ASSUME(CW(1,REGP(1,6)) >= max(CREG(1,5),IREG(1,6)));
     ASSUME(CW(1,REGP(1,6)) >= max(old_cW,CR(1,REGP(1,6))));
     ASSUME(CW(1,REGP(1,6)) >= ctrl[1]);
-    ASSUME(CW(1,REGP(1,6)) >= iAddr[1]);
+    ASSUME(CW(1,REGP(1,6)) >= cAddr[1]);
     // Update
-    iAddr[1] = max(iAddr[1], IREG(1,6));
+    cAddr[1] = max(cAddr[1], CREG(1,6));
     MU(REGP(1,6),CW(1,REGP(1,6))) = REGP(1,5);
     NU(1,REGP(1,6)) = REGP(1,5);
     DELTA(REGP(1,6),CW(1,REGP(1,6))) = -1;
@@ -950,27 +837,19 @@ p1skip:
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 1);
     ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
     // Update
-    IREG(1,3) = new_iReg;
     CREG(1,3) = new_cReg;
     REGP(1,3) = 0;
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 1);
     ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
     // Update
-    IREG(1,4) = new_iReg;
     CREG(1,4) = new_cReg;
     REGP(1,4) = 2;
     
@@ -981,7 +860,7 @@ p1skip:
     CW(1,REGP(1,4)) = get_rng(0,NCONTEXT-1);
     // Check
     ASSUME(active[IW(1,REGP(1,4))] == 1);
-    ASSUME(IW(1,REGP(1,4)) >= max(IREG(1,3),IREG(1,4)));
+    ASSUME(IW(1,REGP(1,4)) >= max(CREG(1,3),CREG(1,4)));
     ASSUME(IW(1,REGP(1,4)) >= max(cDY[1],cISB[1]));
     ASSUME(IW(1,REGP(1,4)) >= max(cDS[1],cDL[1]));
     for (int r = 0; r < NREGS; r++) {
@@ -989,12 +868,11 @@ p1skip:
     }
     ASSUME(CW(1,REGP(1,4)) >= IW(1, REGP(1,4)));
     ASSUME(active[CW(1,REGP(1,4))] == 1);
-    ASSUME(CW(1,REGP(1,4)) >= max(CREG(1,3),IREG(1,4)));
     ASSUME(CW(1,REGP(1,4)) >= max(old_cW,CR(1,REGP(1,4))));
     ASSUME(CW(1,REGP(1,4)) >= ctrl[1]);
-    ASSUME(CW(1,REGP(1,4)) >= iAddr[1]);
+    ASSUME(CW(1,REGP(1,4)) >= cAddr[1]);
     // Update
-    iAddr[1] = max(iAddr[1], IREG(1,4));
+    cAddr[1] = max(cAddr[1], CREG(1,4));
     MU(REGP(1,4),CW(1,REGP(1,4))) = REGP(1,3);
     NU(1,REGP(1,4)) = REGP(1,3);
     DELTA(REGP(1,4),CW(1,REGP(1,4))) = -1;
@@ -1021,27 +899,19 @@ p1done:
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 1);
     ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
     // Update
-    IREG(1,3) = new_iReg;
     CREG(1,3) = new_cReg;
     REGP(1,3) = 0;
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 1);
     ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
     // Update
-    IREG(1,4) = new_iReg;
     CREG(1,4) = new_cReg;
     REGP(1,4) = 2;
     
@@ -1052,7 +922,7 @@ p1done:
     CW(1,REGP(1,4)) = get_rng(0,NCONTEXT-1);
     // Check
     ASSUME(active[IW(1,REGP(1,4))] == 1);
-    ASSUME(IW(1,REGP(1,4)) >= max(IREG(1,3),IREG(1,4)));
+    ASSUME(IW(1,REGP(1,4)) >= max(CREG(1,3),CREG(1,4)));
     ASSUME(IW(1,REGP(1,4)) >= max(cDY[1],cISB[1]));
     ASSUME(IW(1,REGP(1,4)) >= max(cDS[1],cDL[1]));
     for (int r = 0; r < NREGS; r++) {
@@ -1060,39 +930,30 @@ p1done:
     }
     ASSUME(CW(1,REGP(1,4)) >= IW(1, REGP(1,4)));
     ASSUME(active[CW(1,REGP(1,4))] == 1);
-    ASSUME(CW(1,REGP(1,4)) >= max(CREG(1,3),IREG(1,4)));
     ASSUME(CW(1,REGP(1,4)) >= max(old_cW,CR(1,REGP(1,4))));
     ASSUME(CW(1,REGP(1,4)) >= ctrl[1]);
-    ASSUME(CW(1,REGP(1,4)) >= iAddr[1]);
+    ASSUME(CW(1,REGP(1,4)) >= cAddr[1]);
     // Update
-    iAddr[1] = max(iAddr[1], IREG(1,4));
+    cAddr[1] = max(cAddr[1], CREG(1,4));
     MU(REGP(1,4),CW(1,REGP(1,4))) = REGP(1,3);
     NU(1,REGP(1,4)) = REGP(1,3);
     DELTA(REGP(1,4),CW(1,REGP(1,4))) = -1;
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 1);
     ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
     // Update
-    IREG(1,3) = new_iReg;
     CREG(1,3) = new_cReg;
     REGP(1,3) = 1;
     
     /* assign */
     // Guess
-    new_iReg = get_rng(0,NCONTEXT-1);
     new_cReg = get_rng(0,NCONTEXT-1);
     // Check
-    ASSUME(active[new_iReg] == 1);
     ASSUME(active[new_cReg] == 1);
-    ASSUME(new_cReg >= max(ctrl[1],new_iReg));
     // Update
-    IREG(1,4) = new_iReg;
     CREG(1,4) = new_cReg;
     REGP(1,4) = 4;
     
@@ -1103,7 +964,7 @@ p1done:
     CW(1,REGP(1,4)) = get_rng(0,NCONTEXT-1);
     // Check
     ASSUME(active[IW(1,REGP(1,4))] == 1);
-    ASSUME(IW(1,REGP(1,4)) >= max(IREG(1,3),IREG(1,4)));
+    ASSUME(IW(1,REGP(1,4)) >= max(CREG(1,3),CREG(1,4)));
     ASSUME(IW(1,REGP(1,4)) >= max(cDY[1],cISB[1]));
     ASSUME(IW(1,REGP(1,4)) >= max(cDS[1],cDL[1]));
     for (int r = 0; r < NREGS; r++) {
@@ -1111,12 +972,11 @@ p1done:
     }
     ASSUME(CW(1,REGP(1,4)) >= IW(1, REGP(1,4)));
     ASSUME(active[CW(1,REGP(1,4))] == 1);
-    ASSUME(CW(1,REGP(1,4)) >= max(CREG(1,3),IREG(1,4)));
     ASSUME(CW(1,REGP(1,4)) >= max(old_cW,CR(1,REGP(1,4))));
     ASSUME(CW(1,REGP(1,4)) >= ctrl[1]);
-    ASSUME(CW(1,REGP(1,4)) >= iAddr[1]);
+    ASSUME(CW(1,REGP(1,4)) >= cAddr[1]);
     // Update
-    iAddr[1] = max(iAddr[1], IREG(1,4));
+    cAddr[1] = max(cAddr[1], CREG(1,4));
     MU(REGP(1,4),CW(1,REGP(1,4))) = REGP(1,3);
     NU(1,REGP(1,4)) = REGP(1,3);
     DELTA(REGP(1,4),CW(1,REGP(1,4))) = -1;
@@ -1131,11 +991,11 @@ p1done:
         }
     }
     if (
-        (MU(3,NCONTEXT-1) == 0) ||
-        (MU(4,NCONTEXT-1) == 0) ||
-        (MU(0,NCONTEXT-1) != 6) ||
-        (MU(1,NCONTEXT-1) != 6) ||
-    0)
+        (MU(3,NCONTEXT-1) == 1) &&
+        (MU(4,NCONTEXT-1) == 1) &&
+        (MU(0,NCONTEXT-1) != 6) &&
+        (MU(1,NCONTEXT-1) != 6) &&
+    1)
         ASSERT(0);
     
     return 0;
