@@ -1,13 +1,17 @@
 import os
 import subprocess
 import sys
+from termcolor import colored
 
 if len(sys.argv) == 1:
 	infile = os.path.join(os.getcwd(), 'expected_results/expected.txt')
 	outfile = os.path.join(os.getcwd(), 'arm2sc/output.txt')
-else:
+elif sys.argv[1] == "-k":
 	infile = os.path.join(os.getcwd(), 'expected_results/expected_others.txt')
 	outfile = os.path.join(os.getcwd(), 'arm2sc/output_other.txt')
+else:
+	infile = os.path.join(os.getcwd(), 'expected_results/expected_all.txt')
+	outfile = os.path.join(os.getcwd(), 'arm2sc/output_all.txt')
 
 resultdict = {}
 tests = []
@@ -21,7 +25,12 @@ with open(infile) as f:
 
 for test in tests:
 	if len(sys.argv) > 1:
-		cmd = f"python3 arm2sc/translate.py other_tests {test} translated.c && cbmc arm2sc/translated.c 2>/dev/null"
+		if sys.argv[1] == "-k":
+			cmd = f"python3 arm2sc/translate.py other_tests {test} translated.c &&  \
+				cbmc arm2sc/translated.c 2>/dev/null"
+		else:
+			cmd = f"python3 arm2sc/translate.py alltests {test} translated.c &&  \
+				cbmc arm2sc/translated.c 2>/dev/null"
 	else:
 		cmd = f"python3 arm2sc/translate.py {test} translated.c && cbmc arm2sc/translated.c 2>/dev/null"
 	try:
@@ -34,9 +43,15 @@ for test in tests:
 		word = "SUCCEEDED"
 	if word == "FAILED":
 		resultdict[test] = "satisfiable"
+		two = colored('satisfiable', 'green')
 	else:
 		resultdict[test] = "unsatisfiable"
-	print(f"{test} : EXPECTED {expected_dict[test]} GOT {resultdict[test]}")
+		two = colored('unsatisfiable', 'red')
+	if expected_dict[test] == "satisfiable":
+		one = colored('satisfiable', 'green')
+	else:
+		one = colored('unsatisfiable', 'red')
+	print(f"{test} : EXPECTED {one} GOT {two}")
 
 with open(outfile, 'w+') as f:
 	for test, result in resultdict.items():
