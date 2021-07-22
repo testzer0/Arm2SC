@@ -1202,7 +1202,6 @@ MP+po+poxx+SYS2.litmus : satisfiable
 S+dmb.syll+dmb.sy.litmus : unsatisfiable
 MP+dmb.stll+popa.litmus : satisfiable
 Z6.3+dmb.sy+dmb.sy+ctrl.litmus : satisfiable
-MP+dmb.sy+popa-swpal-polp.litmus : unsatisfiable
 Z6.0+poll+dmb.sy+dmb.sy.litmus : unsatisfiable
 Z6.3+dmb.st+dmb.st+po.litmus : satisfiable
 2+2W+dmb.stpl+po.litmus : satisfiable

@@ -93,11 +93,11 @@ int main(int argc, char **argv)
     }
     // any initial memory values here
     // register initial values
-    REGP(0,3) = 0;
-    REGP(0,2) = 1;
-    REGP(1,2) = 0;
-    REGP(2,3) = 1;
-    REGP(2,2) = 0;
+    REGP(0,3) = 1;
+    REGP(0,2) = 0;
+    REGP(1,2) = 1;
+    REGP(2,3) = 0;
+    REGP(2,2) = 1;
     
     // Process 0 BEGIN
     /* assign */
@@ -114,7 +114,6 @@ int main(int argc, char **argv)
     IW(0,REGP(0,3)) = get_rng(0,NCONTEXT-1);
     old_cW = CW(0,REGP(0,3));
     CW(0,REGP(0,3)) = get_rng(0,NCONTEXT-1);
-    CX(0,REGP(0,3)) = CW(0,REGP(0,3));
     // Check
     ASSUME(active[IW(0,REGP(0,3))] == 0);
     ASSUME(IW(0,REGP(0,3)) >= max(CREG(0,4),CREG(0,3)));
@@ -148,7 +147,6 @@ int main(int argc, char **argv)
     IW(0,REGP(0,3)) = get_rng(0,NCONTEXT-1);
     old_cW = CW(0,REGP(0,3));
     CW(0,REGP(0,3)) = get_rng(0,NCONTEXT-1);
-    CX(0,REGP(0,3)) = CW(0,REGP(0,3));
     // Check
     ASSUME(active[IW(0,REGP(0,3))] == 0);
     ASSUME(IW(0,REGP(0,3)) >= max(CREG(0,5),CREG(0,3)));
@@ -195,7 +193,6 @@ int main(int argc, char **argv)
     IW(0,REGP(0,2)) = get_rng(0,NCONTEXT-1);
     old_cW = CW(0,REGP(0,2));
     CW(0,REGP(0,2)) = get_rng(0,NCONTEXT-1);
-    CX(0,REGP(0,2)) = CW(0,REGP(0,2));
     // Check
     ASSUME(active[IW(0,REGP(0,2))] == 0);
     ASSUME(IW(0,REGP(0,2)) >= max(CREG(0,6),CREG(0,2)));
@@ -317,7 +314,7 @@ LC00:
         }
     }
     if (
-        (MU(0,NCONTEXT-1) == 2) &&
+        (MU(1,NCONTEXT-1) == 2) &&
         (REGP(1,3) == 1) &&
         (REGP(2,4) == 1) &&
         (REGP(2,5) == 0) &&

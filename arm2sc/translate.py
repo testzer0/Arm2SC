@@ -223,7 +223,7 @@ def add_ST(p, rprime, r, indentlevel=0):
 	add_indented_code(f"IW({p},REGP({p},{rprime})) = get_rng(0,NCONTEXT-1);", indentlevel)
 	add_indented_code(f"old_cW = CW({p},REGP({p},{rprime}));", indentlevel)
 	add_indented_code(f"CW({p},REGP({p},{rprime})) = get_rng(0,NCONTEXT-1);", indentlevel)
-	if countproc != 0:
+	if countproc[p] != 0:
 		add_indented_code(f"CX({p},REGP({p},{rprime})) = CW({p},REGP({p},{rprime}));", indentlevel)
 	add_indented_code("// Check", indentlevel)
 	add_indented_code(f"ASSUME(active[IW({p},REGP({p},{rprime}))] == {p});", indentlevel)
@@ -253,7 +253,7 @@ def add_STL(p, rprime, r, indentlevel=0):
 	add_indented_code(f"CW({p},REGP({p},{rprime})) = get_rng(0,NCONTEXT-1);", indentlevel)
 	add_indented_code(f"IS({p},REGP({p},{rprime})) = IW({p},REGP({p},{rprime}));", indentlevel)
 	add_indented_code(f"CS({p},REGP({p},{rprime})) = CW({p},REGP({p},{rprime}));", indentlevel)
-	if countproc != 0:
+	if countproc[p] != 0:
 		add_indented_code(f"CX({p},REGP({p},{rprime})) = CW({p},REGP({p},{rprime}));", indentlevel)
 	add_indented_code("// Check", indentlevel)
 	add_indented_code(f"ASSUME(active[IW({p},REGP({p},{rprime}))] == {p});", indentlevel)

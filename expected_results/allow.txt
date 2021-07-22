@@ -1201,7 +1201,6 @@ MP+po+poxx+SYS2.litmus
 S+dmb.syll+dmb.sy.litmus
 MP+dmb.stll+popa.litmus
 Z6.3+dmb.sy+dmb.sy+ctrl.litmus
-MP+dmb.sy+popa-swpal-polp.litmus
 Z6.0+poll+dmb.sy+dmb.sy.litmus
 Z6.3+dmb.st+dmb.st+po.litmus
 2+2W+dmb.stpl+po.litmus

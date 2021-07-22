@@ -39,9 +39,11 @@ for test in tests:
 		word = "SUCCEEDED"
 	if word == "FAILED":
 		resultdict[test] = "unsafe/satisfiable"
+		two = colored('safe/unsatisfiable', 'green')
 	else:
 		resultdict[test] = "safe/unsatisfiable"
-	st = f"{test} : GOT {resultdict[test]}"
+		two = colored('unsafe/satisfiable', 'red')
+	st = f"{test} : GOT {one}"
 	st = st.ljust(50,'.') + f"in {timedict[test]} seconds"
 	print(st)
 
