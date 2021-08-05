@@ -1,0 +1,25 @@
+    MOV R0,#1
+    MOV R1,#3
+    STR R0,[R1]
+    DMB SY
+    MOV R1,#2
+    LDR R0,[R1]
+    ADD R0,R0,#1
+    STR R0,[R1]
+    DMB SY
+    MOV R0,#1
+    MOV R1,#4
+    STR R0,[R1]
+    DMB SY
+    MOV R1,#3
+    loop1:
+    LDR R0,[R1]
+    CBNZ R0,loop1
+    MOV R1,#4
+    loop2:
+    LDR R0,[R1]
+    CBNZ R0,loop1
+    DMB SY
+    MOV R1,#5
+    MOV R0,#1
+    STR R0,[R1]

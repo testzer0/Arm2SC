@@ -1,7 +1,7 @@
 AArch64 MP+nondep+dmb.sy
 Com=Rf Fr
 {
-x = z ; z = 0 ; y = 0 ;
+x=z;z=0;y=0;
 0:X1=x; 0:X4=y;
 1:X1=y; 1:X3=x;
 }

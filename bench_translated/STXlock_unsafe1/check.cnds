@@ -1,0 +1,7 @@
+// 2 threads
+// lockvar: the lock variable, address 0
+// var: the shared variable, address 1
+//
+
+// check if var can be != 2
+not 1 : 2

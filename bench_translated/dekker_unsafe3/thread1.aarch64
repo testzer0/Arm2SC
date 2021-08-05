@@ -1,0 +1,33 @@
+    loophead:
+    MOV R0,#1
+    MOV R1,#1
+    STR R0,[R1]
+    loop:
+    DMB SY
+    MOV R1,#0
+    LDR R0,[R1]
+    CBZ R0,endloop
+    MOV R1,#2
+    LDR R0,[R1]
+    CBNZ R0,loop
+    MOV R1,#1
+    MOV R0,#0
+    STR R0,[R1]
+    wait:
+    DMB SY
+    MOV R1,#2
+    LDR R0,[R1]
+    CBZ R0,wait
+    CBNZ R0,loophead
+    endloop:
+    DMB SY
+    MOV R1,#3
+    LDR R0,[R1]
+    ADD R0,R0,#1
+    STR R0,[R1]
+    MOV R0,#0
+    MOV R1,#2
+    STR R0,[R1]
+    MOV R0,#0
+    MOV R1,#1
+    STR R0,[R1]

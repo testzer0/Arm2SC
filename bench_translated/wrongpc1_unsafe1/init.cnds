@@ -1,0 +1,22 @@
+// 2 threads
+// arr[3]: array used by producer and consumer - address 0 through 2
+// head: location of head - address 3
+// waszero: whether the consumer found any wrong values - address 4
+// done: used to signal - address 5
+//
+// The consumer consumes them (twice as they are produced twice)
+// and in doing so increments the written value, i.e.
+// we expect a transition 0 -> 1 (consumed) -> 2 (consumed)
+// number of processes
+2
+
+// number of memory locations
+6
+
+// contents:
+0 : 0
+1 : 0
+2 : 0
+3 : 0
+4 : 0
+5 : 0

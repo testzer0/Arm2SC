@@ -1,0 +1,35 @@
+    begin:
+    DMB SY
+    MOV R0,#1
+    MOV R1,#1
+    STR R0,[R1]
+    MOV R1,#2
+    LDR R0,[R1]
+    CBNZ R0,endloop
+    MOV R2,R0
+    MOV R1,#0
+    loop:
+    DMB SY
+    LDR R0,[R1]
+    CBNZ R0,loop
+    MOV R2,#1
+    MOV R1,#2
+    STR R2,[R1]
+    endloop:
+    DMB SY
+    MOV R0,#2
+    MOV R1,#1
+    STR R0,[R1]
+    MOV R1,#0
+    LDR R0,[R1]
+    CMP R0,#2
+    B.EQ begin
+    DMB SY
+    MOV R1,#3
+    LDR R0,[R1]
+    ADD R0,R0,#1
+    STR R0,[R1]
+    DMB SY
+    MOV R0,#0
+    MOV R1,#1
+    STR R0,[R1]

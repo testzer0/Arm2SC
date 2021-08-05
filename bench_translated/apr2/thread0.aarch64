@@ -1,0 +1,21 @@
+    MOV R1,#0
+    loop1:
+    LDXR R0,[R1]
+    ADD R0,R0,#1
+    STXR R2,R0,[R1]
+    CBNZ R2,loop1
+    loop2:
+    LDXR R0,[R1]
+    ADD R0,R0,#2
+    STXR R2,R0,[R1]
+    CBNZ R2,loop2
+    loop3:
+    LDXR R0,[R1]
+    SUB R0,R0,#1
+    STXR R2,R0,[R1]
+    CBNZ R2,loop3
+    loop4:
+    LDXR R0,[R1]
+    SUB R0,R0,#1
+    STXR R2,R0,[R1]
+    CBNZ R2,loop4

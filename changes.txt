@@ -1,0 +1,7 @@
+added LD* poloc checks if reading from another event than the one before (and not by forwarding)
+added init for STX/STLX
+Added NW and PW structures for read coherence.
+Changed IW-based dmb constraints to CW based for ST's.
+changed CREG for STX/STLX to 0 since not ctrl dependent.
+moved the checks to the success path of STX/STLX [see LB+addr+addrpx-poxp+VAR]
+changed init checks to commit checks for st/stx (>= cL); and for stl/stlx ( >= cR,cW)

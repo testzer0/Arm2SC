@@ -1,0 +1,30 @@
+    repeat:
+    MOV R1,#2
+    MOV R2,#2
+    trylock:
+    LDXR R0,[R1]
+    CBNZ R0,trylock
+    STXR R3,R2,[R1]
+    CBNZ R3,trylock
+    MOV R2,#0
+    MOV R3,#1
+    LDR R0,[R2]
+    LDR R1,[R3]
+    CMP R0,R1
+    B.EQ done
+    B.GT greater
+    SUB R2,R1,R0
+    B skip
+    greater:
+    SUB R2,R0,R1
+    skip:
+    MOV R3,#1
+    STR R2,[R3]
+    MOV R0,#0
+    MOV R1,#2
+    STR R0,[R1]
+    B repeat
+    done:
+    MOV R0,#0
+    MOV R1,#2
+    STR R0,[R1]

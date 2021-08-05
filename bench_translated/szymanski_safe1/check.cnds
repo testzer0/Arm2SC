@@ -1,0 +1,6 @@
+// 2 threads
+// flag[2]: an array of bools, addresses 0 through 1
+// var: a shared variable, address 2
+//
+
+not 2 : 2

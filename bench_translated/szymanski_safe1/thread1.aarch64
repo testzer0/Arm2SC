@@ -1,0 +1,56 @@
+    MOV R1,#1
+    MOV R0,#1
+    STR R0,[R1]
+    MOV R1,#0
+    loop1:
+    DMB SY
+    LDR R0,[R1]
+    CMP R0,#3
+    B.GE loop1
+    DMB SY
+    MOV R0,#3
+    MOV R1,#1
+    STR R0,[R1]
+    DMB SY
+    MOV R1,#0
+    LDR R0,[R1]
+    CMP R0,#1
+    B.NE skip
+    DMB SY
+    MOV R0,#2
+    MOV R1,#1
+    STR R0,[R1]
+    MOV R1,#0
+    loop2:
+    DMB SY
+    LDR R0,[R1]
+    CMP R0,#4
+    B.NE loop2
+    skip:
+    DMB SY
+    MOV R0,#4
+    MOV R1,#1
+    STR R0,[R1]
+    MOV R1,#0
+    loop3:
+    DMB SY
+    LDR R0,[R1]
+    CMP R0,#2
+    B.GE loop3
+    DMB SY
+    MOV R1,#2
+    LDR R0,[R1]
+    ADD R0,R0,#1
+    STR R0,[R1]
+    MOV R1,#0
+    loop4:
+    LDR R0,[R1]
+    CMP R0,#3
+    B.EQ end
+    CMP R0,#2
+    B.NE loop4
+    end:
+    DMB SY
+    MOV R1,#0
+    MOV R0,#1
+    STR R0,[R1]

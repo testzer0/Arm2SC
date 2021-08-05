@@ -114,8 +114,9 @@ def add_preamble(indentlevel=0):
 	add_indented_code("int registers[NREGS*NPROC];", indentlevel)
 	add_indented_code("int memory[ADDRSIZE];", indentlevel)
 	add_indented_code("int muinit[ADDRSIZE*NCONTEXT], mu[ADDRSIZE*NCONTEXT];", indentlevel)
+	add_indented_code("int nwinit[ADDRSIZE*NCONTEXT], nw[ADDRSIZE*NCONTEXT];", indentlevel)
 	add_indented_code("int deltainit[ADDRSIZE*NCONTEXT], delta[ADDRSIZE*NCONTEXT];", indentlevel)
-	add_indented_code("int nu[NPROC*ADDRSIZE];", indentlevel)
+	add_indented_code("int nu[NPROC*ADDRSIZE], pw[NPROC*ADDRSIZE];", indentlevel)
 	add_indented_code("int cR[NPROC*ADDRSIZE], iW[NPROC*ADDRSIZE],cW[NPROC*ADDRSIZE],cX[NPROC*ADDRSIZE];", indentlevel)
 	add_indented_code("int cL[NPROC*NREGS], iS[NPROC*ADDRSIZE],cS[NPROC*ADDRSIZE];", indentlevel)
 	add_indented_code("int iReg[NPROC*NREGS], cReg[NPROC*NREGS];", indentlevel)
@@ -133,6 +134,9 @@ def add_preamble(indentlevel=0):
 	add_indented_code("#define MU(x,k) mu[x*NCONTEXT+k]", indentlevel)
 	add_indented_code("#define DELTAINIT(x,k) deltainit[x*NCONTEXT+k]", indentlevel)
 	add_indented_code("#define DELTA(x,k) delta[x*NCONTEXT+k]", indentlevel)
+	add_indented_code("#define NWINIT(x,k) nwinit[x*NCONTEXT+k]", indentlevel)
+	add_indented_code("#define NW(x,k) nw[x*NCONTEXT+k]", indentlevel)
+	add_indented_code("#define PW(p,x) pw[p*ADDRSIZE+x]", indentlevel)
 	add_indented_code("#define NU(p,x) nu[p*ADDRSIZE+x]", indentlevel)
 	add_indented_code("#define CR(p,x) cR[p*ADDRSIZE+x]", indentlevel)
 	add_indented_code("#define IW(p,x) iW[p*ADDRSIZE+x]", indentlevel)
@@ -174,6 +178,7 @@ def add_initProc(indentlevel=0):
 	add_indented_code("CR(p,x) = 0;", indentlevel+2)
 	add_indented_code("CW(p,x) = 0;", indentlevel+2)
 	add_indented_code("NU(p,x) = 0;", indentlevel+2)
+	add_indented_code("PW(p,x) = 0;", indentlevel+2)
 	add_indented_code("IS(p,x) = 0;", indentlevel+2)
 	add_indented_code("CS(p,x) = 0;", indentlevel+2)
 	add_indented_code("CX(p,x) = 0;", indentlevel+2)
@@ -196,6 +201,8 @@ def add_initProc(indentlevel=0):
 	add_indented_code("for (int x = 0; x < ADDRSIZE; x++) {", indentlevel+2)
 	add_indented_code("MUINIT(x,k) = __get_rng();", indentlevel+3)
 	add_indented_code("MU(x,k) = MUINIT(x,k);", indentlevel+3)
+	add_indented_code("NWINIT(x,k) = __get_rng();", indentlevel+3)
+	add_indented_code("NW(x,k) = NWINIT(x,k);", indentlevel+3)
 	add_indented_code("DELTAINIT(x,k) = get_rng(-1,NPROC-1);", indentlevel+3)
 	add_indented_code("DELTA(x,k) = DELTAINIT(x,k);", indentlevel+3)
 	add_indented_code("}", indentlevel+2)
@@ -206,6 +213,7 @@ def add_initProc(indentlevel=0):
 	else:
 		add_indented_code("MU(x,k) = __get_rng();", indentlevel+3)
 	add_indented_code("DELTA(x,k) = -1;", indentlevel+3)
+	add_indented_code("NW(x,k) = 0;", indentlevel+3)
 	add_indented_code("}", indentlevel+2)
 	add_indented_code("}", indentlevel+1)
 	add_indented_code("}", indentlevel)
@@ -228,13 +236,13 @@ def add_ST(p, rprime, r, indentlevel=0):
 	add_indented_code("// Check", indentlevel)
 	add_indented_code(f"ASSUME(active[IW({p},REGP({p},{rprime}))] == {p});", indentlevel)
 	add_indented_code(f"ASSUME(IW({p},REGP({p},{rprime})) >= max(CREG({p},{r}),CREG({p},{rprime})));", indentlevel)
-	add_indented_code(f"ASSUME(IW({p},REGP({p},{rprime})) >= max(cDY[{p}],cISB[{p}]));", indentlevel)
-	add_indented_code(f"ASSUME(IW({p},REGP({p},{rprime})) >= max(cDS[{p}],cDL[{p}]));", indentlevel)
 	add_indented_code("for (int r = 0; r < NREGS; r++) {", indentlevel)
-	add_indented_code(f"ASSUME(IW({p},REGP({p},{rprime})) >= CL({p},r));", indentlevel+1)
+	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= CL({p},r));", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= IW({p}, REGP({p},{rprime})));", indentlevel)
 	add_indented_code(f"ASSUME(active[CW({p},REGP({p},{rprime}))] == {p});", indentlevel)
+	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= max(cDY[{p}],cISB[{p}]));", indentlevel)
+	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= max(cDS[{p}],cDL[{p}]));", indentlevel)
 	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= max(old_cW,CR({p},REGP({p},{rprime}))));", indentlevel)
 	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= ctrl[{p}]);", indentlevel)
 	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= cAddr[{p}]);", indentlevel)
@@ -242,6 +250,7 @@ def add_ST(p, rprime, r, indentlevel=0):
 	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{rprime}));", indentlevel)
 	add_indented_code(f"MU(REGP({p},{rprime}),CW({p},REGP({p},{rprime}))) = REGP({p},{r});", indentlevel)
 	add_indented_code(f"NU({p},REGP({p},{rprime})) = REGP({p},{r});", indentlevel)
+	add_indented_code(f"NW(REGP({p},{rprime}),CW({p},REGP({p},{rprime}))) += 1;", indentlevel)
 	add_indented_code(f"DELTA(REGP({p},{rprime}),CW({p},REGP({p},{rprime}))) = -1;", indentlevel)
 	add_indented_code(f"", indentlevel)
 
@@ -258,13 +267,13 @@ def add_STL(p, rprime, r, indentlevel=0):
 	add_indented_code("// Check", indentlevel)
 	add_indented_code(f"ASSUME(active[IW({p},REGP({p},{rprime}))] == {p});", indentlevel)
 	add_indented_code(f"ASSUME(IW({p},REGP({p},{rprime})) >= max(CREG({p},{r}),CREG({p},{rprime})));", indentlevel)
-	add_indented_code(f"ASSUME(IW({p},REGP({p},{rprime})) >= max(cDY[{p}],cISB[{p}]));", indentlevel)
-	add_indented_code(f"ASSUME(IW({p},REGP({p},{rprime})) >= max(cDS[{p}],cDL[{p}]));", indentlevel)
 	add_indented_code("for (int x = 0; x < ADDRSIZE; x++) {", indentlevel)
-	add_indented_code(f"ASSUME(IW({p},REGP({p},{rprime})) >= max(CR({p},x),CW({p},x)));", indentlevel+1)
+	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= max(CR({p},x),CW({p},x)));", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= IW({p}, REGP({p},{rprime})));", indentlevel)
 	add_indented_code(f"ASSUME(active[CW({p},REGP({p},{rprime}))] == {p});", indentlevel)
+	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= max(cDY[{p}],cISB[{p}]));", indentlevel)
+	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= max(cDS[{p}],cDL[{p}]));", indentlevel)
 	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= max(old_cW,CR({p},REGP({p},{rprime}))));", indentlevel)
 	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= ctrl[{p}]);", indentlevel)
 	add_indented_code(f"ASSUME(CW({p},REGP({p},{rprime})) >= cAddr[{p}]);", indentlevel)
@@ -272,6 +281,7 @@ def add_STL(p, rprime, r, indentlevel=0):
 	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{rprime}));", indentlevel)
 	add_indented_code(f"MU(REGP({p},{rprime}),CW({p},REGP({p},{rprime}))) = REGP({p},{r});", indentlevel)
 	add_indented_code(f"NU({p},REGP({p},{rprime})) = REGP({p},{r});", indentlevel)
+	add_indented_code(f"NW(REGP({p},{rprime}),CW({p},REGP({p},{rprime}))) += 1;", indentlevel)
 	add_indented_code(f"DELTA(REGP({p},{rprime}),CW({p},REGP({p},{rprime}))) = -1;", indentlevel)
 	add_indented_code(f"", indentlevel)
 
@@ -281,24 +291,26 @@ def add_STX(p, rdoubleprime, rprime, r, indentlevel=0):
 	add_indented_code(f"old_cW = CW({p},REGP({p},{rprime}));", indentlevel)
 	add_indented_code(f"new_iW = get_rng(0,NCONTEXT-1);", indentlevel)
 	add_indented_code(f"new_cW = get_rng(0,NCONTEXT-1);", indentlevel)
-	add_indented_code("// Check", indentlevel)
-	add_indented_code(f"ASSUME(active[new_iW] == {p});", indentlevel)
-	add_indented_code(f"ASSUME(new_iW >= max(CREG({p},{r}),CREG({p},{rprime})));", indentlevel)
-	add_indented_code(f"ASSUME(new_iW >= max(cDY[{p}],cISB[{p}]));", indentlevel)
-	add_indented_code(f"ASSUME(new_iW >= max(cDS[{p}],cDL[{p}]));", indentlevel)
-	add_indented_code("for (int r = 0; r < NREGS; r++) {", indentlevel)
-	add_indented_code(f"ASSUME(new_iW >= CL({p},r));", indentlevel+1)
-	add_indented_code("}", indentlevel)
-	add_indented_code(f"ASSUME(active[new_cW] == {p});", indentlevel)
-	add_indented_code(f"ASSUME(new_cW >= new_iW);", indentlevel)
-	add_indented_code(f"ASSUME(new_cW >= max(old_cW,CR({p},REGP({p},{rprime}))));", indentlevel)
-	add_indented_code(f"ASSUME(new_cW >= ctrl[{p}]);", indentlevel)
-	add_indented_code(f"ASSUME(new_cW >= cAddr[{p}]);", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{rprime}));", indentlevel)
 	add_indented_code(f"if (DELTA(REGP({p},{rprime}),new_cW) == {p}) {{", indentlevel)
+	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{rprime}));", indentlevel+1)
+	add_indented_code("// Check", indentlevel+1)
+	add_indented_code(f"ASSUME(active[new_iW] == {p});", indentlevel+1)
+	add_indented_code(f"ASSUME(new_iW >= max(CREG({p},{r}),CREG({p},{rprime})));", indentlevel+1)
+	add_indented_code("for (int r = 0; r < NREGS; r++) {", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= CL({p},r));", indentlevel+2)
+	add_indented_code("}", indentlevel+1)
+	add_indented_code(f"ASSUME(active[new_cW] == {p});", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= new_iW);", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= max(cDY[{p}],cISB[{p}]));", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= max(cDS[{p}],cDL[{p}]));", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= max(old_cW,CR({p},REGP({p},{rprime}))));", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= ctrl[{p}]);", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= cAddr[{p}]);", indentlevel+1)
+	# check ends
 	add_indented_code(f"MU(REGP({p},{rprime}),new_cW) = REGP({p},{r});", indentlevel+1)
 	add_indented_code(f"NU({p},REGP({p},{rprime})) = REGP({p},{r});", indentlevel+1)
+	add_indented_code(f"NW(REGP({p},{rprime}),new_cW) += 1;", indentlevel+1)
 	add_indented_code(f"DELTA(REGP({p},{rprime}),new_cW) = -1;", indentlevel+1)
 	add_indented_code(f"REGP({p},{rdoubleprime}) = 0;", indentlevel+1)
 	add_indented_code(f"IW({p},REGP({p},{rprime})) = new_iW;", indentlevel+1)
@@ -307,7 +319,7 @@ def add_STX(p, rdoubleprime, rprime, r, indentlevel=0):
 	add_indented_code("} else {", indentlevel)
 	add_indented_code(f"REGP({p},{rdoubleprime}) = 1;", indentlevel+1)
 	add_indented_code("}", indentlevel)
-	add_indented_code(f"CREG({p},{rdoubleprime}) = new_iW;", indentlevel)
+	add_indented_code(f"CREG({p},{rdoubleprime}) = 0;", indentlevel)
 	add_indented_code(f"", indentlevel)
 	countproc[p] -= 1
 
@@ -317,25 +329,27 @@ def add_STLX(p, rdoubleprime, rprime, r, indentlevel=0):
 	add_indented_code(f"old_cW = CW({p},REGP({p},{rprime}));", indentlevel)
 	add_indented_code(f"new_iW = get_rng(0,NCONTEXT-1);", indentlevel)
 	add_indented_code(f"new_cW = get_rng(0,NCONTEXT-1);", indentlevel)
-	add_indented_code("// Check", indentlevel)
-	add_indented_code(f"ASSUME(active[new_iW] == {p});", indentlevel)
-	add_indented_code(f"ASSUME(new_iW >= max(cDY[{p}],cISB[{p}]));", indentlevel)
-	add_indented_code(f"ASSUME(new_iW >= max(cDS[{p}],cDL[{p}]));", indentlevel)
-	add_indented_code(f"ASSUME(new_iW >= max(CREG({p},{r}),CREG({p},{rprime})));", indentlevel)
-	add_indented_code("for (int x = 0; x < ADDRSIZE; x++) {", indentlevel)
-	add_indented_code(f"ASSUME(new_iW >= max(CR({p},x),CW({p},x)));", indentlevel+1)
-	add_indented_code("}", indentlevel)
-	add_indented_code(f"ASSUME(new_cW >= new_iW);", indentlevel)
-	add_indented_code(f"ASSUME(active[new_cW] == {p});", indentlevel)
-	add_indented_code(f"ASSUME(new_cW >= max(old_cW,CR({p},REGP({p},{rprime}))));", indentlevel)
-	add_indented_code(f"ASSUME(new_cW >= ctrl[{p}]);", indentlevel)
-	add_indented_code(f"ASSUME(new_cW >= cAddr[{p}]);", indentlevel)
 	add_indented_code("// Update", indentlevel)
-	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{rprime}));", indentlevel)
 	add_indented_code(f"if (DELTA(REGP({p},{rprime}),new_cW) == {p}) {{", indentlevel)
+	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{rprime}));", indentlevel+1)
+	add_indented_code("// Check", indentlevel+1)
+	add_indented_code(f"ASSUME(active[new_iW] == {p});", indentlevel+1)
+	add_indented_code(f"ASSUME(new_iW >= max(CREG({p},{r}),CREG({p},{rprime})));", indentlevel+1)
+	add_indented_code("for (int x = 0; x < ADDRSIZE; x++) {", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= max(CR({p},x),CW({p},x)));", indentlevel+2)
+	add_indented_code("}", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= new_iW);", indentlevel+1)
+	add_indented_code(f"ASSUME(active[new_cW] == {p});", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= max(cDY[{p}],cISB[{p}]));", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= max(cDS[{p}],cDL[{p}]));", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= max(old_cW,CR({p},REGP({p},{rprime}))));", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= ctrl[{p}]);", indentlevel+1)
+	add_indented_code(f"ASSUME(new_cW >= cAddr[{p}]);", indentlevel+1)
+	# check ends
 	add_indented_code(f"MU(REGP({p},{rprime}),new_cW) = REGP({p},{r});", indentlevel+1)
 	add_indented_code(f"NU({p},REGP({p},{rprime})) = REGP({p},{r});", indentlevel+1)
 	add_indented_code(f"DELTA(REGP({p},{rprime}),new_cW) = -1;", indentlevel+1)
+	add_indented_code(f"NW(REGP({p},{rprime}),new_cW) += 1;", indentlevel+1)
 	add_indented_code(f"REGP({p},{rdoubleprime}) = 0;", indentlevel+1)
 	add_indented_code(f"IW({p},REGP({p},{rprime})) = new_iW;", indentlevel+1)
 	add_indented_code(f"CW({p},REGP({p},{rprime})) = new_cW;", indentlevel+1)
@@ -345,7 +359,7 @@ def add_STLX(p, rdoubleprime, rprime, r, indentlevel=0):
 	add_indented_code("} else {", indentlevel)
 	add_indented_code(f"REGP({p},{rdoubleprime}) = 1;", indentlevel+1)
 	add_indented_code("}", indentlevel)
-	add_indented_code(f"CREG({p},{rdoubleprime}) = new_iW;", indentlevel)
+	add_indented_code(f"CREG({p},{rdoubleprime}) = 0;", indentlevel)
 	add_indented_code(f"", indentlevel)
 	countproc[p] -= 1
 
@@ -383,8 +397,10 @@ def add_LD(p, rprime, r, indentlevel=0):
 	add_indented_code(f"if (CR({p},REGP({p},{r})) < CW({p},REGP({p},{r}))) {{", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = NU({p},REGP({p},{r}));", indentlevel+1)
 	add_indented_code("} else {", indentlevel)
-	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= old_cR);", indentlevel+1)
+	add_indented_code(f"if (PW({p},REGP({p},{r})) != NW(REGP({p},{r}),CR({p},REGP({p},{r}))))", indentlevel+1)
+	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= old_cR);", indentlevel+2)
 	add_indented_code(f"REGP({p},{rprime}) = MU(REGP({p},{r}),CR({p},REGP({p},{r})));", indentlevel+1)
+	add_indented_code(f"PW({p},REGP({p},{r})) = NW(REGP({p},{r}),CR({p},REGP({p},{r})));", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code("", indentlevel)
 
@@ -414,8 +430,10 @@ def add_LDA(p, rprime, r, indentlevel=0):
 	add_indented_code(f"if (CR({p},REGP({p},{r})) < CW({p},REGP({p},{r}))) {{", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = NU({p},REGP({p},{r}));", indentlevel+1)
 	add_indented_code("} else {", indentlevel)
-	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= old_cR);", indentlevel+1)
+	add_indented_code(f"if (PW({p},REGP({p},{r})) != NW(REGP({p},{r}),CR({p},REGP({p},{r}))))", indentlevel+1)
+	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= old_cR);", indentlevel+2)
 	add_indented_code(f"REGP({p},{rprime}) = MU(REGP({p},{r}),CR({p},REGP({p},{r})));", indentlevel+1)
+	add_indented_code(f"PW({p},REGP({p},{r})) = NW(REGP({p},{r}),CR({p},REGP({p},{r})));", indentlevel+1)
 	add_indented_code("}", indentlevel)
 	add_indented_code("", indentlevel)
 
@@ -440,11 +458,14 @@ def add_LDX(p, rprime, r, indentlevel=0):
 	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{r}));", indentlevel)
 	add_indented_code(f"if (CR({p},REGP({p},{r})) < CW({p},REGP({p},{r}))) {{", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = NU({p},REGP({p},{r}));", indentlevel+1)
+	add_indented_code(f"DELTA(REGP({p},{r}),CW({p},REGP({p},{r}))) = {p};", indentlevel+1)
 	add_indented_code("} else {", indentlevel)
-	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= old_cR);", indentlevel+1)
+	add_indented_code(f"if (PW({p},REGP({p},{r})) != NW(REGP({p},{r}),CR({p},REGP({p},{r}))))", indentlevel+1)
+	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= old_cR);", indentlevel+2)
 	add_indented_code(f"REGP({p},{rprime}) = MU(REGP({p},{r}),CR({p},REGP({p},{r})));", indentlevel+1)
+	add_indented_code(f"DELTA(REGP({p},{r}),CR({p},REGP({p},{r}))) = {p};", indentlevel+1)
+	add_indented_code(f"PW({p},REGP({p},{r})) = NW(REGP({p},{r}),CR({p},REGP({p},{r})));", indentlevel+1)
 	add_indented_code("}", indentlevel)
-	add_indented_code(f"DELTA(REGP({p},{r}),CR({p},REGP({p},{r}))) = {p};", indentlevel)
 	add_indented_code("", indentlevel)
 	countproc[p] += 1
 
@@ -474,11 +495,14 @@ def add_LDAX(p, rprime, r, indentlevel=0):
 	add_indented_code(f"cAddr[{p}] = max(cAddr[{p}], CREG({p},{r}));", indentlevel)
 	add_indented_code(f"if (CR({p},REGP({p},{r})) < CW({p},REGP({p},{r}))) {{", indentlevel)
 	add_indented_code(f"REGP({p},{rprime}) = NU({p},REGP({p},{r}));", indentlevel+1)
+	add_indented_code(f"DELTA(REGP({p},{r}),CW({p},REGP({p},{r}))) = {p};", indentlevel+1)
 	add_indented_code("} else {", indentlevel)
-	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= old_cR);", indentlevel+1)
+	add_indented_code(f"if (PW({p},REGP({p},{r})) != NW(REGP({p},{r}),CR({p},REGP({p},{r}))))", indentlevel+1)
+	add_indented_code(f"ASSUME(CR({p},REGP({p},{r})) >= old_cR);", indentlevel+2)
 	add_indented_code(f"REGP({p},{rprime}) = MU(REGP({p},{r}),CR({p},REGP({p},{r})));", indentlevel+1)
+	add_indented_code(f"DELTA(REGP({p},{r}),CR({p},REGP({p},{r}))) = {p};", indentlevel+1)
+	add_indented_code(f"PW({p},REGP({p},{r})) = NW(REGP({p},{r}),CR({p},REGP({p},{r})));", indentlevel+1)
 	add_indented_code("}", indentlevel)
-	add_indented_code(f"DELTA(REGP({p},{r}),CR({p},REGP({p},{r}))) = {p};", indentlevel)
 	add_indented_code("", indentlevel)
 	countproc[p] += 1
 
@@ -540,6 +564,7 @@ def add_verProc(indentlevel=0):
 	add_indented_code("for (int x = 0; x < ADDRSIZE; x++) {", indentlevel)
 	add_indented_code("for (int k = 0; k < NCONTEXT-1; k++) {", indentlevel+1)
 	add_indented_code("ASSUME(MU(x,k) == MUINIT(x,k+1));", indentlevel+2)
+	add_indented_code("ASSUME(NW(x,k) == NWINIT(x,k+1));", indentlevel+2)
 	add_indented_code("ASSUME(DELTA(x,k) == DELTAINIT(x,k+1));", indentlevel+2)
 	add_indented_code("}", indentlevel+1)
 	add_indented_code("}", indentlevel)
@@ -567,7 +592,7 @@ class Instruction:
 
 
 def parse_from_litmus(ifile):
-	global nproc, incode, countproc
+	global nproc, incode, countproc, nregs, addrsize
 	var_set = set()										# global variable list
 	process_local_regs = []								# process local register list
 	mem_mapping = {}									# variables to values
@@ -578,6 +603,7 @@ def parse_from_litmus(ifile):
 	var_to_addr_map = {}								# global variable to address mapping	
 
 	init_conds = [] 									# global var initial values
+	toresolve = []
 
 	process_private_regs = []
 
@@ -615,8 +641,12 @@ def parse_from_litmus(ifile):
 			else:										# variable initial values
 				subparts = part.split('=')
 				var_set.add(subparts[0])
-				mem_mapping[subparts[0]] = int(subparts[1])
-
+				if (subparts[1]).isnumeric():
+					mem_mapping[subparts[0]] = int(subparts[1])
+				else:
+					var_set.add(subparts[1])
+					mem_mapping[subparts[0]] = subparts[1]
+					toresolve.append(subparts[0])
 		cur_index += 1
 
 	cur_index += 2 										# skip over the '}' and PO|P1|... lines
@@ -625,6 +655,9 @@ def parse_from_litmus(ifile):
 	for var in var_set:
 		var_to_addr_map[var] = vind
 		vind += 1
+
+	for var in toresolve:
+		mem_mapping[var] = var_to_addr_map[mem_mapping[var]]
 
 	# assign local registers numbers - this may miss some
 	# registers that we will find first referred to in the code.
@@ -640,18 +673,28 @@ def parse_from_litmus(ifile):
 			init_reg.append(istmt)
 
 	while not content[cur_index].startswith("exists"):
+		if content[cur_index] == '':
+			cur_index += 1
+			continue
 		parts = [part.strip() for part in content[cur_index][:-1].split('|')]
 		for proc in range(nproc):
 			# need to remove spaces
 			part = parts[proc].split(' ')
+			part[:] = [x for x in part if x]
+			if len(part) == 0:
+				part = ['']
 			operation = part[0]
-			if operation in ['ISB','NOP','']:
-				operands = ['']
-			elif ':' in operation:
+			if ':' in operation:
 				# label
 				stmt = Instruction(proc, InstrType.LABEL.value, operation[:-1])
 				incode[proc].append(stmt)
-				operation = ''				# so that the file isn't blacklisted
+				if len(part) == 1:
+					operation = ''				# so that the file isn't blacklisted
+				else:
+					part = part[1:]
+					operation = part[0]
+			if operation in ['ISB','NOP','']:
+				operands = ['']
 			else:
 				operands =  part[1].split(',')
 				if len(operands) == 2 and not operands[1]:
@@ -798,8 +841,12 @@ def parse_from_litmus(ifile):
 					stmt2 = Instruction(proc, InstrType.ASSIGN.value, 1, exp)
 				incode[proc].append(stmt1)
 				incode[proc].append(stmt2)
-			elif operation == "B.EQ":
-				stmt = Instruction(proc, InstrType.ACI.value, "BEQ", operands[0])
+			elif operation in ["B.EQ", "B.GE", "B.NE", "B.GT"]:
+				stmt = Instruction(proc, InstrType.ACI.value, operation[0]+operation[2:],  \
+					operands[0])
+				incode[proc].append(stmt)
+			elif operation == "B":
+				stmt = Instruction(proc, InstrType.ACI.value, operation, operands[0])
 				incode[proc].append(stmt)
 			elif operation == "EOR":
 				operands[0] = operands[0][1:]
@@ -981,7 +1028,8 @@ def parse_from_litmus(ifile):
 			proc = int(parts[0])
 			subparts = parts[1].split('=')
 			subparts[0] = subparts[0][1:]
-
+			if not (subparts[1]).isnumeric():
+				subparts[1] = var_to_addr_map[subparts[1]]
 			if subparts[0] not in process_local_regs[proc]:
 				process_local_regs[proc].add(subparts[0])
 				process_reg_to_num_map[proc][subparts[0]] = process_reg_nums[proc]
@@ -1002,6 +1050,12 @@ def parse_from_litmus(ifile):
 			istmt = f"(MU({var_to_addr_map[parts[0]]},NCONTEXT-1) == {int(parts[1])})"
 			final_conds.append(istmt)
 
+	# modify global vars
+	nregs = 0
+	addrsize = vind
+	for proc in range(nproc):
+		nregs = max(nregs, process_reg_nums[proc])
+
 def add_aci_instruction(instr, indentlevel=0):
 	if (instr.op1 == "BEQ"):
 		add_indented_code("/* BEQ */", indentlevel)
@@ -1010,6 +1064,32 @@ def add_aci_instruction(instr, indentlevel=0):
 		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},0));", indentlevel)
 		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},1));", indentlevel)
 		add_indented_code(f"if (REGP({instr.p},0) == REGP({instr.p},1))", indentlevel)
+		add_indented_code(f"goto {instr.op2};", indentlevel+1)
+		add_indented_code("", indentlevel)
+	elif (instr.op1 == "BNE"):
+		add_indented_code("/* BNE */", indentlevel)
+		add_control(instr.p, indentlevel)
+		# Can commit BEQ only after registers 1 and 0 are ready
+		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},0));", indentlevel)
+		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},1));", indentlevel)
+		add_indented_code(f"if (REGP({instr.p},0) != REGP({instr.p},1))", indentlevel)
+		add_indented_code(f"goto {instr.op2};", indentlevel+1)
+		add_indented_code("", indentlevel)
+	elif (instr.op1 == "BGE"):
+		add_indented_code("/* BGE */", indentlevel)
+		add_control(instr.p, indentlevel)
+		# Can commit BEQ only after registers 1 and 0 are ready
+		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},0));", indentlevel)
+		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},1));", indentlevel)
+		add_indented_code(f"if (REGP({instr.p},0) >= REGP({instr.p},1))", indentlevel)
+		add_indented_code(f"goto {instr.op2};", indentlevel+1)
+		add_indented_code("", indentlevel)
+	elif (instr.op1 == "BGT"):
+		add_indented_code("/* BGT */", indentlevel)
+		add_control(instr.p, indentlevel)
+		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},0));", indentlevel)
+		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},1));", indentlevel)
+		add_indented_code(f"if (REGP({instr.p},0) > REGP({instr.p},1))", indentlevel)
 		add_indented_code(f"goto {instr.op2};", indentlevel+1)
 		add_indented_code("", indentlevel)
 	elif (instr.op1 == "CBZ"):
@@ -1025,6 +1105,11 @@ def add_aci_instruction(instr, indentlevel=0):
 		add_indented_code(f"ASSUME(ctrl[{instr.p}] >= CREG({instr.p},{instr.op2}));", indentlevel)
 		add_indented_code(f"if (REGP({instr.p},{instr.op2}) != 0)", indentlevel)
 		add_indented_code(f"goto {instr.op3};", indentlevel+1)
+		add_indented_code("", indentlevel)
+	elif (instr.op1 == "B"):
+		add_indented_code("/* B */", indentlevel)
+		add_control(instr.p, indentlevel)
+		add_indented_code(f"goto {instr.op2};", indentlevel)
 		add_indented_code("", indentlevel)
 
 

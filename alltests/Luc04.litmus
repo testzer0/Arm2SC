@@ -6,13 +6,14 @@ Prefetch=0:x=F,0:y=W,2:y=F,2:x=T
 Com=Rf Rf Fr
 Orig=FreOnceOnce PodWWOnceRelease RfeReleaseAcquire PosRWAcquireRelease RfeReleaseAcquire PodRRAcquireOnce
 
-{0:X1=y; 0:X0=x; 1:X1=y; 2:X3=x; 2:X1=y;}
-
- P0           | P1           | P2           ;
- MOV W2,#1    | LDAR W0,[X1] | LDAR W0,[X1] ;
- STR W2,[X0]  | MOV W2,#2    | LDR W2,[X3]  ;
- MOV W2,#1    | STLR W2,[X1] |              ;
- STLR W2,[X1] |              |              ;
+{
+0:X1=y; 0:X0=x; 1:X1=y; 2:X3=x; 2:X1=y;
+}
+P0           | P1           | P2           ;
+MOV W2,#1    | LDAR W0,[X1] | LDAR W0,[X1] ;
+STR W2,[X0]  | MOV W2,#2    | LDR W2,[X3]  ;
+MOV W2,#1    | STLR W2,[X1] |              ;
+STLR W2,[X1] |              |              ;
 
 
 

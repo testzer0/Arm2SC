@@ -9,9 +9,24 @@ if len(sys.argv) == 1:
 elif sys.argv[1] == "-k":
 	infile = os.path.join(os.getcwd(), 'expected_results/expected_others.txt')
 	outfile = os.path.join(os.getcwd(), 'arm2sc/output_other.txt')
-else:
+elif sys.argv[1] == "-o":
 	infile = os.path.join(os.getcwd(), 'expected_results/expected_all.txt')
 	outfile = os.path.join(os.getcwd(), 'arm2sc/output_all.txt')
+elif sys.argv[1] == "-a":
+	infile = os.path.join(os.getcwd(), 'expected_results/expected_all_new.txt')
+	outfile = os.path.join(os.getcwd(), 'arm2sc/output_all_new.txt')
+elif sys.argv[1] == "-b1":
+	infile = os.path.join(os.getcwd(), 'expected_results/expected_b1.txt')
+	outfile = os.path.join(os.getcwd(), 'arm2sc/output_b1.txt')
+elif sys.argv[1] == "-b2":
+	infile = os.path.join(os.getcwd(), 'expected_results/expected_b2.txt')
+	outfile = os.path.join(os.getcwd(), 'arm2sc/output_b2.txt')
+elif sys.argv[1] == "-b3":
+	infile = os.path.join(os.getcwd(), 'expected_results/expected_b3.txt')
+	outfile = os.path.join(os.getcwd(), 'arm2sc/output_b3.txt')
+elif sys.argv[1] == "-b4":
+	infile = os.path.join(os.getcwd(), 'expected_results/expected_b4.txt')
+	outfile = os.path.join(os.getcwd(), 'arm2sc/output_b4.txt')
 
 resultdict = {}
 tests = []
@@ -23,7 +38,12 @@ with open(infile) as f:
 		tests.append(parts[0].strip())
 		expected_dict[parts[0].strip()] = parts[1].strip()
 
+fail = False
+
+count = 1
 for test in tests:
+	if fail:
+		quit()
 	if len(sys.argv) > 1:
 		if sys.argv[1] == "-k":
 			cmd = f"python3 arm2sc/translate.py other_tests {test} translated.c &&  \
@@ -51,7 +71,13 @@ for test in tests:
 		one = colored('satisfiable', 'green')
 	else:
 		one = colored('unsatisfiable', 'red')
-	print(f"{test} : EXPECTED {one} GOT {two}")
+	if resultdict[test] == expected_dict[test]:
+		three = colored('PASS', 'green')
+	else:
+		three = colored('FAIL', 'red')
+		fail = True
+	print(f"{count} {test} : EXPECTED {one} GOT {two}.....{three}")
+	count += 1
 
 with open(outfile, 'w+') as f:
 	for test, result in resultdict.items():

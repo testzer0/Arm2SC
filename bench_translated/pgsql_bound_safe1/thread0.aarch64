@@ -1,0 +1,37 @@
+    MOV R4,#0
+    repeat:
+    MOV R1,#0
+    wait:
+    LDR R0,[R1]
+    CBZ R0,wait
+    DMB SY
+    LDR R0,[R1]
+    CBZ R0,success
+    MOV R2,#2
+    LDR R3,[R2]
+    CBNZ R3,success
+    MOV R0,#1
+    MOV R1,#4
+    STR R0,[R1]
+    success:
+    DMB SY
+    MOV R0,#0
+    MOV R1,#0
+    STR R0,[R1]
+    DMB SY
+    MOV R1,#2
+    LDR R0,[R1]
+    CBZ R0,tail
+    DMB SY
+    MOV R2,#0
+    STR R2,[R1]
+    MOV R2,#1
+    MOV R1,#3
+    STR R2,[R1]
+    DMB SY
+    MOV R1,#1
+    STR R2,[R1]
+    tail:
+    ADD R4,R4,#1
+    CMP R4,#4
+    B.NE repeat

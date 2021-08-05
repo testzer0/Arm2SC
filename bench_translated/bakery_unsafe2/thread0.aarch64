@@ -1,0 +1,59 @@
+    DMB SY
+    MOV R0,#1
+    MOV R1,#0
+    STR R0,[R1]
+    MOV R0,#0
+    MOV R1,#3
+    findmax:
+    DMB SY
+    LDR R2,[R1]
+    CMP R0,R2
+    B.GE label0
+    MOV R0,R2
+    label0:
+    ADD R1,R1,#1
+    CMP R1,#6
+    B.NE findmax
+    ADD R0,R0,#1
+    DMB SY
+    MOV R1,#3
+    STR R0,[R1]
+    MOV R4,R0
+    DMB SY
+    MOV R0,#0
+    MOV R1,#0
+    STR R0,[R1]
+    MOV R1,#0
+    waitenter:
+    DMB SY
+    LDR R0,[R1]
+    CMP R0,#1
+    B.EQ waitenter
+    ADD R1,R1,#1
+    CMP R1,#3
+    B.NE waitenter
+    MOV R0,#3
+    MOV R1,#3
+    waitfinish:
+    DMB SY
+    LDR R2,[R1]
+    CBZ R2,next
+    CMP R2,R4
+    B.GT next
+    B.LT waitfinish
+    CMP R1,R0
+    B.LT waitfinish
+    next:
+    DMB SY
+    ADD R1,R1,#1
+    CMP R1,#6
+    B.NE waitfinish
+    DMB SY
+    MOV R0,#6
+    LDR R1,[R0]
+    ADD R1,R1,#1
+    STR R1,[R0]
+    DMB SY
+    MOV R0,#0
+    MOV R1,#3
+    STR R0,[R1]

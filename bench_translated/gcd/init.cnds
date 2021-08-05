@@ -1,0 +1,18 @@
+// 2 threads
+// a: first number, address 0 
+// b: second number, address 1
+// lock: the lock variable, owners'id+1 stored in it, address 2
+// done[2]: whether the processes are done, addresses 3 and 4
+//
+// number of processes
+2
+
+// number of memory locations
+5
+
+// contents:
+0 : 42
+1 : 54
+2 : 0
+3 : 0
+4 : 0

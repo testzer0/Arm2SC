@@ -1,0 +1,14 @@
+// 2 threads
+// flag[2]: an array of bools, addresses 0 through 1
+// var: the shared variable, address 2
+//
+// number of processes
+2
+
+// number of memory locations
+3
+
+// contents:
+0 : 0
+1 : 0
+2 : 0

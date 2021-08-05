@@ -12,7 +12,6 @@ Orig=RfeReleaseOnce FenceMbdRROnceOnce FreOnceRelease RfeReleaseOnce PodRROnceOn
 {
 0:X0=x; 1:X3=y; 1:X1=x; 2:X0=y; 3:X3=x; 3:X1=y;
 }
-
 P0           | P1          | P2           | P3          ;
 MOV W1,#1    | LDR W0,[X1] | MOV W1,#1    | LDR W0,[X1] ;
 STLR W1,[X0] | DMB SY      | STLR W1,[X0] | LDR W2,[X3] ;

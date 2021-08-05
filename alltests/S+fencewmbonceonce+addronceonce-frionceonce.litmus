@@ -7,14 +7,15 @@ Prefetch=0:x=F,0:y=W,1:y=F,1:x=W
 Com=Rf Ws
 Orig=FenceWmbdWWOnceOnce RfeOnceOnce DpAddrdROnceOnce FriOnceOnce WseOnceOnce
 
-{0:X1=y; 0:X0=x; 1:X4=x; 1:X1=y;}
-
- P0          | P1                  ;
- MOV W2,#2   | LDR W0,[X1]         ;
- STR W2,[X0] | EOR W2,W0,W0        ;
- DMB ST      | LDR W3,[X4,W2,SXTW] ;
- MOV W2,#1   | MOV W5,#1           ;
- STR W2,[X1] | STR W5,[X4]         ;
+{
+0:X1=y; 0:X0=x; 1:X4=x; 1:X1=y;
+}
+P0          | P1                  ;
+MOV W2,#2   | LDR W0,[X1]         ;
+STR W2,[X0] | EOR W2,W0,W0        ;
+DMB ST      | LDR W3,[X4,W2,SXTW] ;
+MOV W2,#1   | MOV W5,#1           ;
+STR W2,[X1] | STR W5,[X4]         ;
 
 
 

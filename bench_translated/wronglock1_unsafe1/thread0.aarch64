@@ -1,0 +1,13 @@
+    MOV R1,#0
+    loop:
+    LDR R0,[R1]
+    CBNZ R0,loop
+    MOV R0,#1
+    STR R0,[R1]
+    MOV R1,#1
+    LDR R0,[R1]
+    ADD R0,R0,#1
+    STR R0,[R1]
+    MOV R0,#0
+    MOV R1,#0
+    STR R0,[R1]

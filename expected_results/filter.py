@@ -23,7 +23,7 @@ def check(ifile):
 	cur_index = 0
 	nproc = 0
 	name = ifile.split('/')[-1]
-	print(name)
+	# print(name)
 
 	# amend
 	changed = False
@@ -56,11 +56,19 @@ def check(ifile):
 				nproc = max(nproc,index)
 		cur_index += 1
 
+	nproc += 1
+	if nproc == 1:
+		return False
+
 	cur_index += 1
 	while content[cur_index].strip() == "":
 		content.pop(cur_index)
+		changed = True
 	cur_index += 1 										# skip over the '}' and PO|P1|... lines
 	while not content[cur_index].startswith("exists"):
+		if content[cur_index] == '':
+			cur_index += 1
+			continue
 		if content[cur_index].startswith("~exists"):
 			content[cur_index] = content[cur_index][1:]
 			changed = True
@@ -86,8 +94,8 @@ def check(ifile):
 					operands[1] = part[2]
 			# these litmus tests have very simple addresses - simple locations
 			if operation in ['LDR','LDAR','LDAXR','LDXR','STR','STLR','STXR', 'STLXR', \
-				'DMB','ISB','MOV','CMP','B.EQ','B.GE','B.GT','B.NE','B.LT','B.LE','EOR', \
-				'CBZ','CBNZ']:
+				'DMB','ISB','MOV','CMP','B.EQ','B.GE','B.GT','B.NE', 'B', 'EOR', \
+				'CBZ','CBNZ', 'ADD', 'SUB', 'MUL','']:
 				pass
 			else:
 				return False

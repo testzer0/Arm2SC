@@ -1,0 +1,59 @@
+    repeat:
+    MOV R0,#1
+    MOV R1,#1
+    STR R0,[R1]
+    MOV R0,#2
+    MOV R1,#2
+    STR R0,[R1]
+    DMB SY
+    MOV R1,#3
+    LDR R0,[R1]
+    CBZ R0,skip
+    DMB SY
+    MOV R1,#1
+    MOV R0,#0
+    STR R0,[R1]
+    MOV R1,#3
+    DMB SY
+    wait:
+    LDR R0,[R1]
+    CBNZ R0,wait
+    CBZ R0,repeat
+    skip:
+    DMB SY
+    MOV R0,#2
+    STR R0,[R1]
+    DMB SY
+    MOV R1,#2
+    LDR R0,[R1]
+    CMP R0,#2
+    B.EQ locked
+    DMB SY
+    MOV R1,#1
+    MOV R0,#0
+    STR R0,[R1]
+    DMB SY
+    MOV R1,#0
+    waitflag:
+    LDR R0,[R1]
+    CBNZ R0,waitflag
+    MOV R1,#3
+    LDR R0,[R1]
+    CMP R0,#2
+    B.EQ repeat
+    waitctr:
+    LDR R0,[R1]
+    CBNZ R0,waitctr
+    CBZ R0,repeat
+    locked:
+    DMB SY
+    MOV R1,#4
+    LDR R0,[R1]
+    ADD R0,R0,#1
+    STR R0,[R1]
+    DMB SY
+    MOV R0,#0
+    MOV R1,#1
+    STR R0,[R1]
+    MOV R1,#3
+    STR R0,[R1]

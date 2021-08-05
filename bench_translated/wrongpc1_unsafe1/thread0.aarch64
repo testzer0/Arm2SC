@@ -1,0 +1,18 @@
+    MOV R0,#1
+    MOV R1,#0
+    MOV R2,#3
+    loop1:
+    STR R1,[R2]
+    STR R0,[R1]
+    ADD R1,R1,#1
+    CMP R1,#3
+    B.NE loop1
+    MOV R1,#0
+    loop2:
+    STR R1,[R2]
+    STR R0,[R1]
+    ADD R1,R1,#1
+    CMP R1,#3
+    B.NE loop2
+    MOV R1,#5
+    STR R0,[R1]

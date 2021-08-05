@@ -1,0 +1,14 @@
+    MOV R1,#3
+    wait:
+    LDR R0,[R1]
+    CBZ R0,wait
+    DMB SY
+    MOV R2,#2
+    LDR R1,[R2]
+    LDR R0,[R1]
+    ADD R0,R0,#1
+    STR R0,[R1]
+    DMB SY
+    MOV R0,#0
+    MOV R1,#3
+    STR R0,[R1]

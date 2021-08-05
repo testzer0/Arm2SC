@@ -1,0 +1,9 @@
+// 3 threads
+// queue[3]: the wait-queue, addresses 0 through 2 [9 = empty]
+// var: shared variable, address 3
+// lock: the lock protecting the queue, address 4
+// doorbell[3]: the wakeup call, addresses 5 through 7
+//
+
+// check if shared var can be != 3
+not 3 : 3

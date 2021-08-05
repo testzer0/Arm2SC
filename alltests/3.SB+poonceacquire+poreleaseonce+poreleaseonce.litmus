@@ -9,12 +9,13 @@ Prefetch=0:x=F,0:y=T,1:y=F,1:z=T,2:z=F,2:x=T
 Com=Fr Fr Fr
 Orig=PodWROnceAcquire FreAcquireRelease PodWRReleaseOnce FreOnceRelease PodWRReleaseOnce FreOnceOnce
 
-{0:X2=y; 0:X0=x; 1:X2=z; 1:X0=y; 2:X2=x; 2:X0=z;}
-
- P0           | P1           | P2           ;
- MOV W3,#1    | MOV W3,#1    | MOV W3,#1    ;
- STR W3,[X0]  | STLR W3,[X0] | STLR W3,[X0] ;
- LDAR W1,[X2] | LDR W1,[X2]  | LDR W1,[X2]  ;
+{
+0:X2=y; 0:X0=x; 1:X2=z; 1:X0=y; 2:X2=x; 2:X0=z;
+}
+P0           | P1           | P2           ;
+MOV W3,#1    | MOV W3,#1    | MOV W3,#1    ;
+STR W3,[X0]  | STLR W3,[X0] | STLR W3,[X0] ;
+LDAR W1,[X2] | LDR W1,[X2]  | LDR W1,[X2]  ;
 
 
 

@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 from timeit import default_timer as timer
+from termcolor import colored
 
 tests = ["burns_safe1", "burns_unsafe1", "burns_unsafe2", "burns_unsafe3", "burns_unsafe4",  \
 		 "burns_unsafe5", "dekker_safe1", "dekker_unsafe1", "dekker_unsafe2", "dekker_unsafe3",  \
@@ -16,9 +17,11 @@ tests = ["burns_safe1", "burns_unsafe1", "burns_unsafe2", "burns_unsafe3", "burn
 resultdict = {}
 timedict = {}
 outfile = os.path.join(os.getcwd(),'arm2sc/output_prog.txt')
+timeout = ["gcd", "apr2"]
 
 for test in tests:
-	if test != "gcd":
+	if test in timeout:
+		print(f"Skipping {test} since it took too long last time.")
 		continue
 	cmd = f"python3 arm2sc/translate_prog.py {test} translated.c && python3 arm2sc/call_cbmc.py 2>/dev/null"
 	then = timer()
@@ -39,15 +42,14 @@ for test in tests:
 		word = "SUCCEEDED"
 	if word == "FAILED":
 		resultdict[test] = "unsafe/satisfiable"
-		two = colored('safe/unsatisfiable', 'green')
+		two = colored('unsafe/satisfiable', 'red')
 	else:
 		resultdict[test] = "safe/unsatisfiable"
-		two = colored('unsafe/satisfiable', 'red')
-	st = f"{test} : GOT {one}"
+		two = colored('safe/unsatisfiable', 'green')
+	st = f"{test} : GOT {two}"
 	st = st.ljust(50,'.') + f"in {timedict[test]} seconds"
 	print(st)
 
-quit()
 with open(outfile, 'w+') as f:
 	for test, result in resultdict.items():
 		stmt = f"{test} : GOT {resultdict[test]}"

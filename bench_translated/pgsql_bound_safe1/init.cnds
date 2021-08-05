@@ -1,0 +1,17 @@
+// 2 threads
+// latch[2]: an array of bools, addresses 0 through 1
+// flag[2]: an array of bools, addresses 2 through 3
+// wrong: whether something went wrong, address 4
+//
+// number of processes
+2
+
+// number of memory locations
+5
+
+// contents:
+0 : 1
+1 : 0
+2 : 1
+3 : 0
+4 : 0

@@ -1,0 +1,97 @@
+op not supported: AND => 35
+parse error in startconds => 8
+Check cnds parse error => 18
+conditions have OR => 63
+op not supported: SWP => 2
+op not supported: ADR => 2
+cannot split on comma: foral => 1
+only 1 process => 12
+intel syntax => 1
+op not supported: ORR => 1
+op not supported: SWPAL => 1
+cannot split on comma: P0 => 1
+
+==========================
+
+LISA-rfi-acq3.litmus : op not supported: AND W2,W0,#128
+LISA-rfi-acq0.litmus : op not supported: AND W2,W0,#128
+JMM00.litmus : parse error in startconds
+C11-Z-allow.litmus : Check cnds parse error
+MP+dmb.sy+addr-po.litmus : op not supported: AND W2,W0,#128
+MP+dmb.sy+data-rfipa-poap.litmus : op not supported: AND W2,W0,#128
+RfiSwp.litmus : op not supported: SWP W3,W2,[X1]
+MP+dmb.st+rmw-rfi-addr.litmus : op not supported: AND W5,W4,#128
+MP+dmb.sy+indr.litmus : op not supported: ADR X5,LC00
+CO-SBI.litmus : cannot split on comma: foral
+C-Will02.litmus : Check cnds parse error
+ARMv8-csel-addr-write.litmus : parse error in startconds
+C11-Z-forbid.litmus : Check cnds parse error
+LISA-bigdetour-failure.litmus : op not supported: AND W2,W0,#8
+CoRW1+dmb.sys.litmus : only 1 process
+RfiRmw.litmus : op not supported: AND W9,W2,#128
+CSEL-COND.litmus : op not supported: AND W2,W0,#128
+ARMv8-csel-addr.litmus : parse error in startconds
+CoRW1.litmus : only 1 process
+CO-RSDWI.litmus : intel syntax
+Luc16.litmus : op not supported: AND W2,W0,#8
+CSEL-POS.litmus : op not supported: AND W2,W0,#128
+Luc21.litmus : op not supported: AND W2,W0,#128
+MP+dmb.sy+data-wsi-[ws-rf]-addr.litmus : op not supported: AND W2,W0,#128
+coRW1+o+o.litmus : only 1 process
+SC-DEP-DATA.litmus : op not supported: ORR W4,W2,#1
+CoWW.litmus : only 1 process
+TC5.litmus : Check cnds parse error
+MP+dmb.sy+addrpx-posxp-vardiff.aarch64.litmus : Check cnds parse error
+TC18.litmus : Check cnds parse error
+SIMPLE+X.litmus : only 1 process
+SIMPLE2+X.litmus : Check cnds parse error
+Luc15.litmus : op not supported: AND W2,W0,#128
+ARMv8-csel-po.litmus : parse error in startconds
+MP+dmb.sy+addr-isb.litmus : op not supported: AND W2,W0,#128
+Luc02.litmus : Check cnds parse error
+TC9a.litmus : Check cnds parse error
+CSEL-NEG.litmus : op not supported: AND W2,W0,#128
+ATOM00.litmus : Check cnds parse error
+ARMv8-pred-addr.litmus : parse error in startconds
+Luc19.litmus : op not supported: AND W2,W0,#128
+MP+dmb.sy+ctrlap.litmus : parse error in startconds
+Z3-relacq.litmus : op not supported: AND W2,W0,#8
+RfiSwpBis.litmus : op not supported: SWP W5,W4,[X3]
+coWW+o+o.litmus : only 1 process
+MP+dmb.sy+popa-swpal-polp.litmus : op not supported: SWPAL W5,W4,[X2]
+ARMv8-csel-isb.litmus : parse error in startconds
+Luc17.litmus : op not supported: AND W2,W0,#8
+Luc22.litmus : op not supported: AND W2,W0,#128
+W+RWC+wsilp+poaa+pola.litmus : Check cnds parse error
+TC17.litmus : Check cnds parse error
+CSEL-BOTH-02.litmus : op not supported: AND W2,W0,#128
+ARM-bigdetour-failure.litmus : op not supported: AND W2,W0,#128
+MP+dmb.sy+data-po.litmus : op not supported: AND W2,W0,#128
+RW-B.litmus : only 1 process
+TC8.litmus : Check cnds parse error
+Luc18.litmus : op not supported: AND W2,W0,#128
+TC9.litmus : Check cnds parse error
+MP+dmb.sy+data-isb.litmus : op not supported: AND W2,W0,#128
+MP+wmb+addr-rb_dep.litmus : op not supported: AND W2,W0,#128
+CSEL-BOTH.litmus : op not supported: AND W2,W0,#128
+LB+mb+data.litmus : op not supported: AND W2,W0,#128
+MP+dmb.st+rmw-rfipa-addrap.litmus : op not supported: AND W5,W4,#128
+C-Will03.litmus : Check cnds parse error
+JSV.litmus : parse error in startconds
+Luc14.litmus : op not supported: AND W2,W0,#16
+S+dmb.sy+indr.litmus : op not supported: ADR X5,LC00
+RfiRmwBis.litmus : op not supported: AND W9,W4,#128
+ARMv8-ctrl-addr-write.litmus : Check cnds parse error
+CoWR0.litmus : only 1 process
+ARM-atomic-hb-failure.litmus : op not supported: AND W2,W0,#64
+Z6.3+poll+wsilp+poaa.litmus : Check cnds parse error
+MP.litmus : cannot split on comma: P0
+ATOM07.litmus : only 1 process
+MP+wmb+addr.litmus : op not supported: AND W2,W0,#128
+CoWR0+dmb.sys.litmus : only 1 process
+S+mb+data.litmus : op not supported: AND W2,W0,#128
+WW-B.litmus : only 1 process
+Z3-floating-relacq.litmus : op not supported: AND W2,W0,#8
+MP+dmb.sy+addr-isb+REAL.litmus : Check cnds parse error
+S+wmb+data.litmus : op not supported: AND W2,W0,#128
+CoWW+dmb.sys.litmus : only 1 process
