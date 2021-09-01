@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "2+2W+poss"
+hash = "e256350a85f0511170ff44eb7c7dacea"
+cycle = "Wse PosWW Wse PosWW"
+relax = ""
+safe = "Wse PosWW"
+prefetch = ""
+com = "Ws Ws"
+orig = "PosWW Wse PosWW Wse"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	MOV W0,#3
+	STR W0,[X1]
+	MOV W2,#4
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~(*x = 2 | *x = 4)"

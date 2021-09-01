@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "C-Will03"
+hash = "213236f671033a812fc702e4ab1c751b"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X2 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	MOV W3,#1
+	LDXR W4,[X2]
+	ADD W3,W4,W3
+	STLXR W5,W3,[X2]
+	CBNZ W5,Fail0
+	DMB ISH
+	B Exit0
+Fail0:
+	MOV W3,#1
+	LDXR W8,[X2]
+	ADD W3,W8,W3
+	STLXR W9,W3,[X2]
+Exit0:
+"""
+
+[thread.1]
+init = { X1 = "x", X2 = "y" }
+code = """
+	MOV W0,#2
+	STR W0,[X2]
+	DMB ISH
+	LDR W3,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X4 = 0 & 1:X3 = 0 & ~0:X5 = 0 & 0:X9 = 0"

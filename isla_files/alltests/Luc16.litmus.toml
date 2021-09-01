@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "Luc16"
+mapping = "1:X7=r5,1:X6=r4,1:X5=r3,1:X3=r2,1:X2=r1,1:X0=r0"
+com = "Rf Fr"
+hash = "c443c5faebaf12fe73f9eb4e863a035f"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X4 = "z", X8 = "x" }
+code = """
+	LDR W0,[X1]
+	AND W2,W0,#8
+	LDR W3,[X4,W2,SXTW]
+	LDR W5,[X4]
+	AND W6,W5,#128
+	LDR W7,[X8,W6,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X7 = 0"

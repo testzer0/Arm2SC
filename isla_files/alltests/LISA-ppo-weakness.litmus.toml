@@ -1,0 +1,39 @@
+arch = "AArch64"
+name = "LISA-ppo-weakness"
+mapping = "0:X3=r2,0:X2=r1,0:X0=r0,1:X1=r0,"
+hash = "9da5ebb4718a616a4bdeebee55b9d7ab"
+symbolic = ["u", "v", "x", "y"]
+
+[locations]
+"x" = "v"
+
+[thread.0]
+init = { X1 = "x", X4 = "y" }
+code = """
+	LDR X0,[X1]
+	LDR W2,[X0]
+	LDR W3,[X4]
+"""
+
+[thread.1]
+init = { X1 = "u", X0 = "y", X2 = "x" }
+code = """
+	MOV W3,#2
+	STR W3,[X0]
+	DMB SY
+	STR X1,[X2]
+"""
+
+[thread.2]
+init = { X0 = "u", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = u & 0:X2 = 0 & 0:X3 = 1 & *y = 2"

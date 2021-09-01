@@ -1,0 +1,33 @@
+arch = "AArch64"
+name = "R+dmb.sypl+dmb.stla"
+hash = "da976c3f23f1f92209c5bca521e2e35b"
+cycle = "FreAP DMB.SYdWWPL WseLL DMB.STdWRLA"
+relax = ""
+safe = "DMB.STdWR DMB.SYdWW FreAP WseLL"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Ws Fr"
+orig = "DMB.SYdWWPL WseLL DMB.STdWRLA FreAP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	DMB ST
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*y = 2 & 1:X2 = 0"

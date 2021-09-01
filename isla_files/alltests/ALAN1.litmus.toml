@@ -1,0 +1,36 @@
+arch = "AArch64"
+name = "ALAN1"
+hash = "4dd7570485fd0ac26a1d800d2a46b85a"
+symbolic = ["u", "v", "x", "y", "z"]
+
+[thread.0]
+init = { X7 = "y", X5 = "x", X3 = "u", X1 = "z" }
+code = """
+	LDR W0,[X1]
+	STR W0,[X3]
+	LDAR W2,[X5]
+	LDR W4,[X7]
+"""
+
+[thread.1]
+init = { X7 = "v", X5 = "u", X3 = "z", X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	STLR W0,[X3]
+	LDR W2,[X5]
+	STR W2,[X7]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "v" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 0:X2 = 1 & 0:X4 = 0 & 1:X2 = 1 & 2:X0 = 1"

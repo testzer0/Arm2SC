@@ -1,0 +1,41 @@
+arch = "AArch64"
+name = "Z6.1+poreleaserelease+poreleaserelease+poacquireonce"
+mapping = "2:X0=r0"
+hash = "0ec47993610a4498ef6eed7da277e2e0"
+cycle = "PodRWAcquireOnce WseOnceRelease PodWWReleaseRelease WseReleaseRelease PodWWReleaseRelease RfeReleaseAcquire"
+relax = "WseOnceRelease RfeReleaseAcquire WseReleaseRelease"
+safe = "PodRWAcquireOnce PodWWReleaseRelease"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=W,2:z=F,2:x=W"
+com = "Ws Rf Ws"
+orig = "PodWWReleaseRelease WseReleaseRelease PodWWReleaseRelease RfeReleaseAcquire PodRWAcquireOnce WseOnceRelease"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#2
+	STLR W2,[X0]
+	MOV W2,#1
+	STLR W2,[X1]
+"""
+
+[thread.1]
+init = { X0 = "y", X1 = "z" }
+code = """
+	MOV W2,#2
+	STLR W2,[X0]
+	MOV W2,#1
+	STLR W2,[X1]
+"""
+
+[thread.2]
+init = { X1 = "z", X2 = "x" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 2 & 2:X0 = 1"

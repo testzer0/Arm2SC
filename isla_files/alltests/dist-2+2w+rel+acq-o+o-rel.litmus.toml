@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "dist-2+2w+rel+acq-o+o-rel"
+mapping = "1:X0=r1,"
+hash = "459b5072d4c27d41ebf37c8fdec8054c"
+symbolic = ["x", "y"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+
+[thread.0]
+init = { X0 = "x" }
+code = """
+	MOV W1,#1
+	STLR W1,[X0]
+"""
+
+[thread.1]
+init = { X1 = "x", X2 = "y" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#2
+	STR W3,[X2]
+"""
+
+[thread.2]
+init = { X0 = "y", X1 = "x" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	MOV W2,#2
+	STLR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & *x = 1 & *y = 1"

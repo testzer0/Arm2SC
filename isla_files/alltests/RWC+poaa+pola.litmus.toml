@@ -1,0 +1,36 @@
+arch = "AArch64"
+name = "RWC+poaa+pola"
+hash = "aa4c33265aa7fc790ccc7c0e8285203c"
+cycle = "RfePA PodRRAA FreAL PodWRLA FreAP"
+relax = "PodRRAA PodWRLA"
+safe = "Rfe Fre"
+prefetch = "1:x=F,1:y=T,2:y=F,2:x=T"
+com = "Rf Fr Fr"
+orig = "RfePA PodRRAA FreAL PodWRLA FreAP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDAR W0,[X1]
+	LDAR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X2 = 0 & 2:X2 = 0"

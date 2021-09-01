@@ -1,0 +1,40 @@
+arch = "AArch64"
+name = "ATOM01"
+hash = "f8ce92b4dc9b5c3fea8f11b721e31bf7"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "DMB.SYdWW RfePX PodRRXX FreXP"
+symbolic = ["ok", "x", "y"]
+
+[locations]
+"ok" = "1"
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X6 = "ok", X3 = "x", X0 = "y" }
+code = """
+	LDXR W1,[X0]
+	STXR W2,W1,[X0]
+	CBNZ W2,Fail1
+	LDXR W4,[X3]
+	STXR W2,W4,[X3]
+	CBNZ W2,Fail1
+	B Exit1
+Fail1:
+	MOV W5,#0
+	STR W5,[X6]
+Exit1:
+"""
+
+[final]
+expect = "sat"
+assertion = "*ok = 1 & *x = 1 & *y = 1 & 1:X1 = 1 & 1:X4 = 0"

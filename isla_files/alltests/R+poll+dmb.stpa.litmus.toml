@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "R+poll+dmb.stpa"
+hash = "826f2da19198d1230d5924541a1476cd"
+cycle = "FreAL PodWWLL WseLP DMB.STdWRPA"
+relax = ""
+safe = "PodWW DMB.STdWR FreAL WseLP"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Ws Fr"
+orig = "PodWWLL WseLP DMB.STdWRPA FreAL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	DMB ST
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*y = 2 & 1:X2 = 0"

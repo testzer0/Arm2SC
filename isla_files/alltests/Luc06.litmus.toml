@@ -1,0 +1,45 @@
+arch = "AArch64"
+name = "Luc06"
+mapping = "1:X0=r0,2:X0=r0,3:X0=r0"
+hash = "51b812d3b5880e1e15ef157b11fd0b05"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=W,2:z=F,2:a=W,3:a=F,3:x=W"
+com = "Rf Rf Rf Ws"
+orig = "WseOnceOnce PodWWOnceRelease RfeReleaseAcquire PodRWAcquireRelease RfeReleaseAcquire PodRWAcquireRelease RfeReleaseAcquire PodRWAcquireOnce"
+symbolic = ["a", "x", "y", "z"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	MOV W2,#1
+	STLR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X2 = "z" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STLR W3,[X2]
+"""
+
+[thread.2]
+init = { X1 = "z", X2 = "a" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STLR W3,[X2]
+"""
+
+[thread.3]
+init = { X1 = "a", X2 = "x" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 1 & 2:X0 = 1 & 3:X0 = 1"

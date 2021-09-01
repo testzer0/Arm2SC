@@ -1,0 +1,52 @@
+arch = "AArch64"
+name = "LISA-super-detour2"
+mapping = "0:X3=r1,0:X0=r0,1:X2=r3,1:X0=r2,3:X2=r5,3:X0=r4,"
+hash = "38fdf6008e93d391864fa616e1d3babe"
+symbolic = ["u", "v", "w", "x", "y", "z"]
+
+[thread.0]
+init = { X1 = "v", X2 = "x", X4 = "y", X5 = "u" }
+code = """
+	LDR W0,[X1]
+	STR W0,[X2]
+	LDR W3,[X4]
+	STR W3,[X5]
+"""
+
+[thread.1]
+init = { X1 = "x", X3 = "z" }
+code = """
+	LDAR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[thread.2]
+init = { X0 = "z", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.3]
+init = { X1 = "u", X3 = "w" }
+code = """
+	LDAR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[thread.4]
+init = { X0 = "w", X1 = "v" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 0:X3 = 1 & 1:X0 = 1 & 1:X2 = 0 & 3:X0 = 1 & 3:X2 = 0"

@@ -1,0 +1,43 @@
+arch = "AArch64"
+name = "Z6.5+fencembonceonce+fencembonceonce+poonceacquire"
+mapping = "2:X1=r0"
+hash = "a9a4fd724b6df02517efd4fcb5f0f842"
+cycle = "FreAcquireOnce FenceMbdWWOnceOnce WseOnceOnce FenceMbdWWOnceOnce WseOnceOnce PodWROnceAcquire"
+relax = "FreAcquireOnce"
+safe = "PodWROnceAcquire WseOnceOnce FenceMbdWWOnceOnce"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=W,2:z=F,2:x=T"
+com = "Ws Ws Fr"
+orig = "FenceMbdWWOnceOnce WseOnceOnce FenceMbdWWOnceOnce WseOnceOnce PodWROnceAcquire FreAcquireOnce"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X0 = "y", X1 = "z" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.2]
+init = { X0 = "z", X2 = "x" }
+code = """
+	MOV W3,#2
+	STR W3,[X0]
+	LDAR W1,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "*y = 2 & *z = 2 & 2:X1 = 0"

@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "LISA-rfi-acq2"
+mapping = "1:X5=r3,1:X4=r2,1:X0=r1"
+hash = "23ce2b2e2c8d6544c7052a9ac29879f2"
+symbolic = ["u", "x", "y", "z"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X2 = "z", X3 = "u", X6 = "x" }
+code = """
+	LDR W0,[X1]
+	STR W0,[X2]
+	DMB ST
+	MOV W7,#1
+	STR W7,[X3]
+	LDAR W4,[X3]
+	LDR W5,[X6]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X5 = 0"

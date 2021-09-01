@@ -1,0 +1,65 @@
+arch = "AArch64"
+name = "WRR+2W+poxxs+X"
+hash = "dc9bbc35abcd1c62b131bd77aeae695f"
+cycle = "RfeXX PodRRXX FreXX PodWWXX WseXX"
+relax = ""
+safe = "PodWW PodRR RfeXX FreXX WseXX"
+prefetch = "1:x=F,1:y=T,2:y=F,2:x=W"
+com = "Rf Fr Ws"
+orig = "RfeXX PodRRXX FreXX PodWWXX WseXX"
+symbolic = ["ok", "x", "y"]
+
+[locations]
+"ok" = "1"
+
+[thread.0]
+init = { X5 = "ok", X0 = "x" }
+code = """
+	MOV W1,#2
+	LDXR W2,[X0]
+	STXR W3,W1,[X0]
+	CBNZ W3,Fail0
+	B Exit0
+Fail0:
+	MOV W4,#0
+	STR W4,[X5]
+Exit0:
+"""
+
+[thread.1]
+init = { X6 = "ok", X3 = "y", X0 = "x" }
+code = """
+	LDXR W1,[X0]
+	STXR W2,W1,[X0]
+	CBNZ W2,Fail1
+	LDXR W4,[X3]
+	STXR W2,W4,[X3]
+	CBNZ W2,Fail1
+	B Exit1
+Fail1:
+	MOV W5,#0
+	STR W5,[X6]
+Exit1:
+"""
+
+[thread.2]
+init = { X8 = "ok", X4 = "x", X0 = "y" }
+code = """
+	MOV W1,#1
+	LDXR W2,[X0]
+	STXR W3,W1,[X0]
+	CBNZ W3,Fail2
+	MOV W5,#1
+	LDXR W6,[X4]
+	STXR W3,W5,[X4]
+	CBNZ W3,Fail2
+	B Exit2
+Fail2:
+	MOV W7,#0
+	STR W7,[X8]
+Exit2:
+"""
+
+[final]
+expect = "sat"
+assertion = "*ok = 1 & *x = 2 & *y = 1 & 0:X2 = 1 & 1:X1 = 2 & 1:X4 = 0 & 2:X2 = 0 & 2:X6 = 0"

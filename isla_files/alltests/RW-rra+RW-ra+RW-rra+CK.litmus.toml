@@ -1,0 +1,42 @@
+arch = "AArch64"
+name = "RW-rra+RW-ra+RW-rra+CK"
+mapping = "0:X0=r2,1:X0=r1,2:X2=r2,2:X0=r1,"
+hash = "61e572602c0e1e454f06dc3295f0c76c"
+symbolic = ["x1", "x2", "y", "z"]
+
+[thread.0]
+init = { X1 = "y", X2 = "x1" }
+code = """
+	LDR W0,[X1]
+	MOV W3,#1
+	STLR W3,[X2]
+"""
+
+[thread.1]
+init = { X1 = "x1", X2 = "x2" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STLR W3,[X2]
+"""
+
+[thread.2]
+init = { X1 = "x2", X3 = "z" }
+code = """
+	LDAR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[thread.3]
+init = { X0 = "z", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 0:X0 = 1 & 2:X2 = 0"

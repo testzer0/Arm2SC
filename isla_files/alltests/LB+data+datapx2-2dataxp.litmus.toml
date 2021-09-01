@@ -1,0 +1,34 @@
+arch = "AArch64"
+name = "LB+data+datapx2-2dataxp"
+hash = "8462e7029a2d2e053bcf0c9258bc277c"
+symbolic = ["a", "x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	ADD W2,W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X10 = "x", X6 = "a", X3 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	ADD W2,W2,#1
+	LDXR W4,[X3]
+	STXR W5,W2,[X3]
+	LDXR W7,[X6]
+	STXR W8,W2,[X6]
+	ADD W9,W4,#1
+	ADD W9,W5,W9
+	ADD W9,W7,W9
+	ADD W9,W8,W9
+	STR W9,[X10]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & *y = 1 & *z = 1 & *a = 1 & 0:X0 = 1 & 1:X8 = 0 & 1:X5 = 0 & 1:X0 = 1"

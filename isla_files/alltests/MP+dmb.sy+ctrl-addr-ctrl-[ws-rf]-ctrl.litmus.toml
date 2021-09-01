@@ -1,0 +1,50 @@
+arch = "AArch64"
+name = "MP+dmb.sy+ctrl-addr-ctrl-[ws-rf]-ctrl"
+hash = "2fa6018ccd47b09638792ea2a15c5c04"
+cycle = "Rfe DpCtrldR DpAddrdR DpCtrldW WsLeave RfBack DpCtrldR Fre DMB.SYdWW"
+relax = ""
+safe = "Rfe Fre DMB.SYdWW DpAddrdR DpCtrldW DpCtrldR [WsLeave,RfBack]"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr Rf"
+orig = "DMB.SYdWW Rfe DpCtrldR DpAddrdR DpCtrldW WsLeave RfBack DpCtrldR Fre"
+symbolic = ["a", "b", "x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X11 = "x", X8 = "b", X6 = "a", X3 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	CBNZ W0,LC00
+LC00:
+	LDR W2,[X3]
+	EOR W4,W2,W2
+	LDR W5,[X6,W4,SXTW]
+	CBNZ W5,LC01
+LC01:
+	MOV W7,#1
+	STR W7,[X8]
+	LDR W9,[X8]
+	CBNZ W9,LC02
+LC02:
+	LDR W10,[X11]
+"""
+
+[thread.2]
+init = { X1 = "b" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "*b = 2 & *x = 1 & *y = 1 & 1:X0 = 1 & 1:X9 = 2 & 1:X10 = 0"

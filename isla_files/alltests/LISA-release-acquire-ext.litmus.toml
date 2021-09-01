@@ -1,0 +1,34 @@
+arch = "AArch64"
+name = "release-acquire-ext"
+mapping = "1:X0=r1,2:X2=r2,2:X0=r0"
+hash = "bcd3a6096b02dc8b7e7b345f4834f9aa"
+symbolic = ["s", "x", "y"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X2 = "s" }
+code = """
+	LDR W0,[X1]
+	MOV W3,#1
+	STLR W3,[X2]
+"""
+
+[thread.2]
+init = { X1 = "s", X3 = "x" }
+code = """
+	LDAR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 2:X2 = 0"

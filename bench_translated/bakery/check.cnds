@@ -1,7 +1,0 @@
-// 3 threads
-// entering[3]: an array of bools, addresses 0 through 2
-// number[3]: an array of integers, addresses 3 through 5
-// var: the shared variable, address 6
-//
-// check whether the shared variable can be != 3
-not 6 : 3

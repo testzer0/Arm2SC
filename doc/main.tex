@@ -1,0 +1,1074 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{listings}
+\usepackage[a4paper,bindingoffset=0.2in,%
+            left=0.3in,right=0.3in,top=0.3in,bottom=1in,%
+            footskip=.25in]{geometry}
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+\usepackage[scaled=0.8]{FiraMono}
+\usepackage[utf8]{inputenc}
+\usepackage{amsfonts}
+\usepackage{mathbbol}
+\usepackage[makeroom]{cancel}
+\usepackage{mathtools}
+\usepackage{amssymb} 
+\usepackage{xcolor}
+
+\usepackage[inline]{fixme}
+\fxsetup{
+  status=draft,
+  layout=inline, % also try footnote or pdfnote
+  theme=color
+}
+% \definecolor{fxnote}{rgb}{0.8000,0.0000,0.0000}
+
+\fxsetup{theme=color,mode=multiuser}
+\FXRegisterAuthor{gp}{agp}{GP}
+\FXRegisterAuthor{ab}{aab}{\color{blue}AB}
+\newcommand{\gpn}[2][]{\gpnote*{#1}{#2}}
+\newcommand{\gp}[1]{\gpnote{#1}}
+\newcommand{\abn}[2][]{\abnote*{#1}{#2}}
+\newcommand{\ab}[1]{\abnote{#1}}
+
+\usepackage{stmaryrd}
+\usepackage{mathtools}
+\usepackage[ruled,linesnumbered]{algorithm2e}
+\newcommand{\var}{\texttt}
+
+\newcommand\myeq{\stackrel{\mathclap{\normalfont\mbox{def}}}{=}}
+
+\usepackage{array}
+\usepackage{makecell}
+
+\renewcommand\theadalign{bc}
+\renewcommand\theadfont{\bfseries}
+\renewcommand\theadgape{\Gape[4pt]}
+\renewcommand\cellgape{\Gape[4pt]}
+
+
+\title{Model Checking for ARMv8}
+\author{Adithya Bhaskar}
+\date{May 2021}
+
+\begin{document}
+
+\maketitle
+\section{Introduction and Motivation}
+In the paper \cite{dec}, the authors demonstrated a general scheme by which one could ascertain decidability for a wide range of memory models, which resulted in acknowledgement of the undecidability for a wide range of memory models, including AArch64. This called for an efficient under-approximation to the model, and accordingly an efficient model checking scheme which can use it. While existing models such as Herd \cite{herd} and the Flat \cite{flat} model do a good job of expressing the memory model, neither is well suited to a model checking approach. This is primarily because the former is in the form of predicates over allowed abstractions which is not easily extended to operational semantics, while the latter is not expressed in a formal notation and also does not include many oft-used instructions such as load and store exclusives. Motivated by recent approaches to using context-bounding as an efficient under-approximation to reachability, such as for POWER \cite{power}, we make the following contributions in this document: 1) We simplify the above two models into a form directly usable for the purposes of model checking, and prove it's equivalence to the herd model; and 2) We develop an under-approximation scheme to check reachability by bounding the number of contexts of execution, in the spirit of the work first championed by Lal and Reps \cite{lalreps}. We demonstrate that it is feasible to check moderately complex multithreaded programs running under power in acceptable amounts of time, opening the door to further optimizations. We open source our code so that others can build upon it.
+\section{Syntax for programs (simpler version)}
+We use the following syntax for the program.
+$$Prog ::= \texttt{ vars: }x^*$$
+\vspace{-2em}
+$$\qquad\qquad\quad\texttt{procs: }p^*$$
+$$p ::= \;\texttt{regs: } \$r^*$$
+\vspace{-2em}
+$$\qquad\quad\texttt{instrs: }i^*$$
+$$i ::= l:\texttt{s}$$
+$$\texttt{s} ::= \;x \leftarrow exp$$ 
+\vspace{-1.7em}
+$$\qquad\;| \$r \leftarrow x $$
+\vspace{-1.7em}
+$$\qquad\quad\;| \$r \leftarrow exp$$
+\vspace{-1.7em}
+$$\qquad\qquad\qquad\qquad\quad\enspace|\texttt{if } exp \texttt{ then }i^* \texttt{ else }i^*$$
+\vspace{-1.7em}
+$$\qquad\qquad\qquad\;|\texttt{while } exp \texttt{ do }i^*$$
+\vspace{-1.7em}
+$$\qquad\qquad|\texttt{assume } exp$$
+\vspace{-1.7em}
+$$\qquad\qquad|\texttt{assert } exp$$
+\vspace{-1.7em}
+$$\quad|\texttt{term}$$
+A program $Prog$ first declares a set $\mathcal{X}$ of (shared) variables followed by the code of a set $\mathcal{P}$ of processes. Each process in turn declares a set of registers $\$r$ and it's code in the form of a sequence of instructions denoted by $i^*$. Each such instruction consists of a label $l$ and a statement $s$. A \textit{write} instruction has a statement of the form $x \leftarrow exp$ where $x \in \mathcal{X}$ is a variable and $exp$ is an \textit{expression}. In all the above rules, $exp$ is an expression containing only constants and registers, and no shared variables. A \textit{read} instruction in a process $p \in \mathcal{P}$ is a statement of the form $\$r \leftarrow x$, where $\$r$ is a register in $p$ and $x \in \mathcal{X}$ is a variable. An \textit{assign} instruction in a process $p \in \mathcal{P}$ has the form $\$r \leftarrow exp$, where $\$r$ is a register and $exp$ is an expression. Conditional, iterative, assume and assert instructions, collectively called aci instructions describe the rest of the instructions. The special instruction \texttt{term} is a syntactic sugar to mark the end of the code for the process.
+\vspace{-1em}
+\section{Definitions for the rules}
+We first define a few helper functions:
+\begin{itemize}
+    \setlength\itemsep{0em}
+    \item We refer to the statement corresponding to an instruction \texttt{i} by the function \texttt{stmt(i)}.
+    \item For a write instruction $i$ whose statement is of the form $x \leftarrow exp$, or a read instruction $i$ whose statement is of the form $\$r \leftarrow x$, we define $\texttt{var}(i) := x$ to be the variable corresponding to the instruction. For all other types of instructions we define $\texttt{var}(i) = \bot$.
+    \item For a instruction $i$ which is of one of the following forms: a write instruction with $\texttt{stmt}(i) = \$r \leftarrow exp$, an assign instruction with $\$r \leftarrow exp$, an aci instruction with either $\texttt{stmt}(i) = \texttt{if } exp \texttt{ then }i^* \texttt{ else }i^*$ or $\texttt{stmt}(i) = \texttt{while } exp \texttt{ do }i^*$, or $\texttt{stmt}(i) = \texttt{assume } exp$, or $\texttt{stmt}(i) = \texttt{assert } exp$, we define the expression occuring in the statement as $\texttt{exp}(i) := exp$. For all other types of instructions we define $\texttt{exp}(i) := \bot$.
+    \item For an instruction instance $i$ belonging to the process $p$, we define $\texttt{proc}(i) := p$. Further, we denote the set of instructions of process $p$ by $\mathcal{J}_p$. Also, we denote the statement at which process $p$ begins execution (i.e. the first instruction of the process), by $i_p^{init}$.
+    \item For an instruction instance $i \in \mathcal{J}_p$, we denote by $\texttt{next}(i)$ the set of instructions that could immediately follow $i$ in program order. In particular, for an ACI instruction $i$, we denote the set of instructions that could follow $i$ upon evaluation of $\texttt{exp}(i)$ to True, as $\texttt{Tnext}(i)$, and the set of those that could follow on its evaluation to False as $\texttt{Fnext}(i)$.
+    \item We define the closest write $CW(\mathbb{c},\mathbb{e}) := \mathbb{e}'$ where $\mathbb{e}'$ is the unique event such that (here and in the rest of the document, an \textit{event} is a single execution instance of an instruction),
+    \begin{enumerate}
+        \setlength\itemsep{0em}
+        \item $\mathbb{e'} \in \mathbb{E}_p^W$ ($\mathbb{E}_p^W$ denotes the set of write events as defined below),
+        \item $\mathbb{e'} \prec_\texttt{poloc} \mathbb{e}$ (The poloc program order  $\prec_\texttt{poloc}$ will be defined below),
+        \item there is no event $\mathbb{e}''$ such that $\mathbb{e}'' \in \mathbb{E}_p^W$ and $\mathbb{e}' \prec_\texttt{poloc} \mathbb{e}'' \prec_\texttt{poloc} \mathbb{e}$.
+    \end{enumerate}
+    If no such events exists, we write $CW(\mathbb{e}) := \bot$.
+    \item We define by $\mathcal{R}(i)$ the set of registers appearing in $\texttt{exp}(i)$. In the special case that $\texttt{exp}(i) = \bot$, we write $\mathcal{R}(i) := \emptyset$.
+\end{itemize}
+We define a \textit{configuration} $\mathbb{c}$ as the tuple $\langle\mathbb{E}, \prec, \texttt{ins}, \texttt{status}, \texttt{rf}, \texttt{Prop}\rangle$. Here, $\mathbb{E} \in \mathcal{E}$ is the set of events that have been created up to that point in the program. For any process $p$, we denote by $\mathbb{E}_p$ the events of process $p$ that have been created so far. By $\mathbb{E}^W$ we denote the subset of $\mathbb{E}$ containing precisely the write events. We similarly define $\mathbb{E}^R$, $\mathbb{E}^{ACI}$ and so on. The program order relation $\prec \subseteq \mathbb{E} \times \mathbb{E}$ is an irreflexive partial order that describes for each process $p \in \mathcal{P}$ the order in which events are fetched from the code of $p$. Note that $\mathbb{e}_1 \not\prec \mathbb{e}_2$ if $\texttt{proc}(\mathbb{e}_1) \neq \texttt{proc}(\mathbb{e}_2)$, i.e. if they belong to different processes, and $\prec$ is a total order on each of the $\mathbb{E}_p$ individually. The function $\texttt{status}:\mathbb{E} \mapsto \{\texttt{fetch,init,com}\}$ defines the current status of each event, which is one of fetched, initialized, and committed. The function $\texttt{Prop}: \mathcal{X} \mapsto \mathbb{E}^W \cup \mathcal{E}^\texttt{init}$ defines for each variable the latest value of that variable that has been propagated to the main memory. The function $\texttt{rf}:\mathbb{E}^R \mapsto \mathbb{E}^W \cup \mathcal{E}^\texttt{init}$ defines for each read event $\mathbb{e}$ the event $\texttt{rf}(\mathbb{e})$ from which $\mathbb{e}$ gets its value. 
+We introduce a number of dependency relations to help us frame the rules. The \textit{per-location program order} $\prec_\texttt{poloc} \subseteq \mathbb{E} \times \mathbb{E}$ is such that $\mathbb{e}_1 \prec_\texttt{poloc} \mathbb{e}_2$ if and only if $\mathbb{e}_1 \prec \mathbb{e}_2$ and $\texttt{var}(\mathbb{e}_1) = \texttt{var}(\mathbb{e}_2)$. Further, we define the data dependency order $\prec_\texttt{data}$ such that $\mathbb{e}_1 \prec_\texttt{data} \mathbb{e}_2$ if 
+\begin{itemize}
+    \setlength\itemsep{0em}
+    \item $\mathbb{e}_1 \in \mathbb{E}^R \cup \mathbb{E}^A$, i.e. $\mathbb{e}_1$ is a read or assign event.
+    \item $\mathbb{e}_2 \in \mathbb{E}^W \cup \mathbb{E}^A \cup \mathbb{E}^{ACI}$, i.e. $\mathbb{e}_2$ is a write, assign or ACI event.
+    \item $\mathbb{e}_1 \prec \mathbb{e}_2$
+    \item $\texttt{stmt}(\texttt{ins}(\mathbb{e}_1))$ is of the form $\$r \leftarrow x$ or $\$r \leftarrow exp$,
+    \item $\$r \in \mathcal{R}(\texttt{ins}(\mathbb{e}_2))$
+    \item There is no event $\mathbb{e_3} \in \mathbb{E}^R \cup \mathbb{E}^A$ such that $\mathbb{e}_1 \prec \mathbb{e}_3 \prec \mathbb{e}_2$ is of the form $\$r \leftarrow y$ or $\$r \leftarrow exp'$. That is, we want that $\mathbb{e}_1$ be responsible for "supplying" the data to $\mathbb{e}_2$.
+\end{itemize}
+Finally, we define the control dependency $\prec_\texttt{ctrl}$ as $\mathbb{e}_1 \prec_\texttt{ctrl} \mathbb{e}_2$ if $\mathbb{e}_1 \in \mathbb{E}^{ACI}$ and $\mathbb{e}_1 \prec \mathbb{e}_2$.\\
+We also define the transition relation as a relation $\longrightarrow \subseteq \mathbb{C} \times \mathcal{P} \times \mathbb{C}$. For configurations $\mathbb{c}_1,\mathbb{c}_2 \in \mathbb{C}$ and a process $p \in \mathcal{P}$, we write $\mathbb{c}_1 \xrightarrow{p} \mathbb{c}_2$ to denote that $\langle\mathbb{c}_1,p,\mathbb{c}_2\rangle \in \longrightarrow$.
+\vspace{-1em}
+\section{Helper predicates for next section}
+\begin{center}
+ \begin{tabular}{||c | c | c ||} 
+ \hline
+ \textbf{Predicate} & \textbf{Definition} & \textbf{Meaning} \\ [0.5ex] 
+ \hline\hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^W$ :\\ $\texttt{ComCnd}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e'} \in \mathbb{E}$ :\\$((\mathbb{e}' \prec_\texttt{data} \mathbb{e}) \vee (\mathbb{e'} \prec_\texttt{ctrl} \mathbb{e}) \vee (\mathbb{e'} \prec_\texttt{poloc} \mathbb{e}))$ \\ $\implies$ \\ $(\texttt{status}(\mathbb{e'}) = \texttt{com})$} & \makecell{All events preceeding $\mathbb{e}$ in $\prec_\texttt{data}$, $\prec_\texttt{ctrl}$\\ or $\prec_\texttt{poloc}$ have already been commited.}  \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^R \cup \mathbb{E}^A$ :\\ $\texttt{RdAssignComCnd}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e'} \in \mathbb{E}$ :\\$(\mathbb{e}' \prec_\texttt{data} \mathbb{e}) $ \\ $\implies$ \\ $(\texttt{status}(\mathbb{e'}) = \texttt{com})$} & \makecell{All events preceeding $\mathbb{e}$ in $\prec_\texttt{data}$,\\ have already been commited.}  \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^W$ : \\ $\texttt{InitCnd}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}^R \cup \mathbb{E}^A$ :\\$(\mathbb{e}' \prec_\texttt{data} \mathbb{e})$ \\ $\implies$ \\ $((\texttt{status}(\mathbb{e'}) = \texttt{init}) \vee (\texttt{status}(\mathbb{e}') = \texttt{com}))$ } & \makecell{All instructions on which $\mathbb{e}$ is data-dependent\\ on have already been initialized. } \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\texttt{ACI}$ :\\$\texttt{ValidCnd}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}^\texttt{ACI}$ :\\$((\mathbb{e} \prec \mathbb{e}') \wedge (\nexists \mathbb{e}'' \in \mathbb{E} : \mathbb{e} \prec \mathbb{e''} \prec \mathbb{e'}))$\\$\implies$\\$(((\texttt{Val}(\mathbb{c},\mathbb{e}) = true) \wedge (\texttt{ins}(\mathbb{e'}) = \texttt{Tnext}(\texttt{ins}(\mathbb{e}))))$\\$\vee$\\$((\texttt{Val}(\mathbb{c},\mathbb{e}) = false) \wedge (\texttt{ins}(\mathbb{e}') = \texttt{Fnext}(\texttt{ins}(\mathbb{e})))))$} & \makecell{The instruction that was fetched right\\ after the ACI instruction was consistent\\ with its truth value.} \\
+ \hline
+ 
+ \hline
+\end{tabular}
+\end{center}
+% [\texttt{var}(\mathbb{e}) \leftarrow \mathbb{e}]
+\section{Rules without synchronization instructions}
+  In each of these rules, $\mathbb{c} \equiv \langle \mathbb{E}, \prec, \var{ins}, \var{status}, \var{rf}, \var{Prop} \rangle$ denotes the "current" configuration, and the rule describes one possible way in which this configuration may evolve.
+$$ \frac{\mathbb{e} \notin \mathbb{E},\hspace{1em} \prec' = \prec \cup \{ \langle \mathbb{e}', \mathbb{e}\rangle | \mathbb{e}' \in \mathbb{E} \}, \hspace{1em} i \in \texttt{MaxI}(\mathbb{c},p)}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E} \cup \{ \mathbb{e} \}, \prec', \texttt{ins}[\mathbb{e} \leftarrow i], \texttt{status}[\mathbb{e} \leftarrow \texttt{fetch}], \texttt{rf}, \texttt{Prop} \rangle} \texttt{Fetch} $$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^R, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} CW(\mathbb{c},\mathbb{e}) = \mathbb{e}', \hspace{1em} \texttt{status}(\mathbb{e'}) = \texttt{com}, \hspace{1em} \var{RdAssignComCnd}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E},\prec,\texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{init}], \texttt{rf}[\mathbb{e} \leftarrow \mathbb{e}'], \texttt{Prop} \rangle} \texttt{ComReadFromLocal}$$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^R, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} (CW(\mathbb{c},\mathbb{e}) = \bot) \vee (CW(\mathbb{c},\mathbb{e}) = \mathbb{e}' \wedge \texttt{status}(\mathbb{e}') = \texttt{com}), \hspace{1em} \var{RdAssignComCnd}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E},\prec,\texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}[\mathbb{e} \leftarrow \texttt{Prop}(\texttt{var}(\mathbb{e}))], \texttt{Prop} \rangle} \texttt{ComReadFromProp}$$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^W, \hspace{1em} \texttt{status} (\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{InitCnd}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{init}], \texttt{rf}, \texttt{Prop}\rangle} \texttt{InitWrite} $$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^W, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{init}, \hspace{1em} \texttt{ComCnd}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}, \texttt{Prop}[\texttt{var}(\mathbb{e}) \leftarrow \mathbb{e}]\rangle} \texttt{ComWrite}$$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^A, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{init}, \hspace{1em} \texttt{RdAssignComCnd}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}, \texttt{Prop}\rangle} \texttt{ComAssign} $$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^\texttt{ACI}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{ComCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{ValidCnd}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}, \texttt{Prop} \rangle} \texttt{ComACI} $$
+The rule \texttt{Fetch} chooses the next instruction to be executed from the code of a process $p \in \mathcal{P}$. To do this it should be able to select the next instruction $i$ given the configuration $\mathbb{c}$. To do this, we define the function $\texttt{MaxI}(\mathbb{c},p)$ to be the set of instructions that can (intuitively) follow the current one. Formally,
+\begin{itemize}
+    \setlength\itemsep{0em}
+    \item If $\mathbb{E}_p = \emptyset$, then we define $\texttt{MaxI}(\mathbb{c},p) := \{i_p^{init}\}$, i.e. the first instruction to be fetched by $p$ is $i_p^{init}$.
+    \item If $\mathbb{E}_p \neq \emptyset$ let $\mathbb{e}' \in \mathbb{E}_p$ be the maximal event in $\mathbb{E}_p$ w.r.t $\prec$ in the configuration $\mathbb{c}$. Define $\texttt{MaxI}(\mathbb{c},p) := \texttt{next}(\texttt{ins}(\mathbb{e}'))$
+\end{itemize}
+The remaining rules can be explained as follows:
+\begin{itemize}
+    \setlength\itemsep{0em}
+    \item Once a read instruction is fetched, it can be satisfied by reading from either the latest \texttt{po}-previous write instruction (from the same process) that has not yet been propagated to memory, or can be satisfied by reading the value from memory if no such instruction exists. The rule \texttt{ComReadFromLocal} captures the former case, while the rule \texttt{ComReadFromProp} captures the latter. In both cases, we update the status of $\mathbb{e}$ to show that it has been 'committed', and update \texttt{rf} to indicate the instruction that satisfied it.
+    \item A write instruction can be initialized if all events it is data-dependent on have been initialized. This rule is captured in the form of \texttt{InitWrite}. At this point events of the same thread can read from this write.
+    \item  Once all \texttt{po}-previous instructions on which $\mathbb{e}$ depends in some way (via a data, control or poloc dependency) have been committed (i.e. been propagated to memory), an initialized read can be propagated to memory and be committed. At this point events from all threads can read from this write. This forms \texttt{ComWrite}.
+    \item The rules for an assign event are similar to that of a read event.
+    \item An ACI event undergoes only one state transition after being fetched, i.e. being committed. However, such an event can be committed if and only if it is \textit{valid}, i.e., e.g. the predicted branch turns out to be correct, or a loop is entered, etc. Of course, along with this it must satisfy the \texttt{ComCnd} which says that all events that $\mathbb{e}$ depends upon must have already been committed. This is captured as the rule \texttt{ComACI}.
+\end{itemize}
+\vspace{-2em}
+\section{Syntax for programs (complete version)}
+We introduce a number of instructions resembling those that are used in the AArch64. We explain them in the next section.
+\vspace{-1em}
+$$Prog ::= \texttt{procs: }p^*$$
+$$p ::= \;\texttt{regs: } \$r^*$$
+\vspace{-2em}
+$$\qquad\quad\texttt{instrs: }i^*$$
+$$i ::= l:\texttt{s}$$
+$$\texttt{s} ::= \qquad \$r \leftarrow exp$$
+\vspace{-1.7em}
+$$\qquad\kern 3.5em| \var{LD } \$r' \leftarrow [\$r] $$
+\vspace{-1.7em}
+$$\qquad\qquad\kern 1.5em| \var{ST } [\$r'] \leftarrow \$r $$
+\vspace{-1.7em}
+$$\qquad\kern 3.9em| \var{LDA } \$r' \leftarrow [\$r] $$
+\vspace{-1.7em}
+$$\qquad\qquad\kern 1.9em| \var{STL } [\$r'] \leftarrow \$r $$
+\vspace{-1.7em}
+$$\qquad\kern 3.9em| \var{LDX } \$r' \leftarrow [\$r] $$
+\vspace{-1.7em}
+$$\qquad\qquad\kern 3.6em| \var{STX } \$r'',\; [\$r'] \leftarrow \$r $$
+\vspace{-1.7em}
+$$\qquad\kern 4em| \var{LDAX } \$r' \leftarrow [\$r] $$
+\vspace{-1.7em}
+$$\qquad\qquad\kern 4.1em| \var{STLX } \$r'',\; [\$r'] \leftarrow \$r $$
+\vspace{-1.7em}
+$$\qquad\qquad\qquad\qquad\quad\enspace|\texttt{if } exp \texttt{ then }i^* \texttt{ else }i^*$$
+\vspace{-1.7em}
+$$\qquad\qquad\qquad\;|\texttt{while } exp \texttt{ do }i^*$$
+\vspace{-1.7em}
+$$\qquad\qquad|\texttt{assume } exp$$
+\vspace{-1.7em}
+$$\qquad\qquad|\texttt{assert } exp$$
+\vspace{-1.7em}
+$$\qquad|\texttt{dmb.ld}$$
+\vspace{-1.7em}
+$$\qquad|\texttt{dmb.st}$$
+\vspace{-1.7em}
+$$\qquad|\texttt{dmb.sy}$$
+\vspace{-1.7em}
+$$\enspace|\texttt{isb}$$
+\vspace{-1.7em}
+$$\quad|\texttt{term}$$
+We comment about a few things here: the first thing to notice is that we have removed variables, and instead introduced addressed memory: the latter is exactly the same as the former, with the added complexity that there can now be address dependencies between instructions, which did not exist for variables. We refer to all kinds of loads collectively as "reads", and all kinds of stores collectively as "writes". Second, the assign instruction is closer to a read than it is a write: the primary reason is that it writes to registers and not memory (and thus it's side effects affect the former). In fact, an assign may be represented as a store to a "private" variable followed by a load from it, hence it is in a sense a compound instruction. However, since it does not directly interface with the memory at all, any run is indistinguishable from another wherein an assign is initialized or committed at a different time, as long as the read-from relations to and from it are preserved. Hence, we do not include the assign statement in the statement of the predicates. Third, for simplicity we assume that the addresses of loads and stores are registers, and not expressions of registers. The reason for this is that one, exactly the same rules given in the next-to-next section apply if we use expressions instead, and this, two, we can simply assume that we assign the expression to a reserved register and use it as the address immediately after (this is the same under this model). 
+\section{Definitions and Helper predicates for next section}
+Along with the usual load/store and read/write operations, we also introduce three "special" types of loads and stores. First, a load or a store can be \textcolor{red}{exclusive}. The significance of a load exclusive that loads from an address and a store exclusive that writes back to that address is that the store \textcolor{red}{succeeds} if and only if no other event (from any process) has written to that address since the load exclusive. Also, corresponding to whether the store exclusive succeeded or not, the \textcolor{blue}{success value} is written to a specified register. Note that such a primitive may be used to implement, e.g. locks or \var{CAS} instructions. There are also \textcolor{blue}{load-acquire} and \textcolor{blue}{store-release} instructions. These are special in that it is forbidden for any instruction that appears \var{po}-after the load-acquire to be reordered with it. Similarly, it is forbidden for any instruction that appears \var{po}-before the store-release to be reordered with it. In effect, the combination of a load-acquire and store-release serves like a \var{dmb.sy}. Finally there are \textcolor{blue}{\var{LDAX}} and \textcolor{blue}{\var{STLX}} instructions which are simply the combination of both the acquire/release and exclusive type of instructions, i.e. they provide the strictest guarantees. One point to observe here is that by nature of its definition the exclusive versions of stores are multi-copy atomic: every process (including the local one) sees the write at the same time; consequently we can consider it to have only a commit rule (since the \var{init} rules were meant to portray the period where effects were visible only to the local process).\\
+We also introduce a few more helpful definitions. For any event $\mathbb{e}$, $\var{RegWritten}(\mathbb{e})$ is the register that $\mathbb{e}$ writes to, or $\bot$ if there is no such register. This is non-$\var{bot}$ for read, exclusive store and assign events. Further, for an assign event $\mathbb{e}$ of the form $\$r \gets exp$, we define as $\var{OpRegs}(\mathbb{e})$ to be the set of registers appearing in $exp$.\\
+It is also worth pointing out that any kind of read has only a commit rule: since the point of local and global visibility for a read is same, we can assume that the \var{init} and \var{commit} point are the same; consequently we let them directly commit after being fetched. This applies to all four kinds of reads.\\
+Since we now have address dependencies, we note that at any point in an execution, for an event $\mathbb{e}$, $\var{addr}(\mathbb{e})$ may not be defined, which we write as $\var{addr}(\mathbb{e}) = \top$. Then, for two events $\mathbb{e}_1 \prec \mathbb{e}_2$, if $\var{addr}(\mathbb{e}_1) = \top$, it is possible that upon resolution, we get later that $\mathbb{e}_1 \prec_\var{poloc} \mathbb{e}_2$. Subsequently, we include in \var{poloc}-dependencies all event pairs $(\mathbb{e}_1,\mathbb{e}_2)$ such that $\var{addr}(\mathbb{e}_1) = \top$.\\
+Coming to the barriers, there are four types: three are \var{dmb.ld},\var{dmb.st} and \var{dmb.sy}. The \var{ld} variant stops the reordering of (local) load instructions (and variants therof, including "reads" from a variable) with it, while the \var{st} variant does that with stores and writes. The \var{sy} variant does both. The \var{isb} instruction is a bit different: all we need is that when it is committed, all \var{po}-preceeding events have their addresses (to which they write or from which they read) fully determined, i.e. any instruction that they are \var{addr}-dependent on must have been initialized (or committed).\\
+We introduce events corresponding to these new instructions: we retain our nomenclature of their partition, with the corresponding $\mathbb{E}^\texttt{name}$ being the subset of $\mathbb{E}$ corresponding to \texttt{name} type of instructions. We should also revise our definition of $CW$. The events that can now write to a memory location are stores and store releases. Note however that Store Releases will write the success/failure indicator bit (0 is success) into a \textit{register} (called $\$r$ above), hence we need to consider them for the definition of $CW$ as well. Thus, our definition of $CW$ is revised to be the following: for reads and loads $\mathbb{e}$, $CW(\mathbb{e})$ is defined to the \var{po}-latest store/write or variant therof that is \var{poloc}-before the store release. Note that this works even if that instruction is exclusive, because since a store exclusive has only a commit rule, that any read that is \var{poloc} after it has to wait for it to commit; by which time due to the rule, all events \var{po}-before the SRel are committed as well. Hence, the effects of the \var{SRel} are already well defined and visible to all processes. We also comment that we refer to both the old type of reads as well as the normal load instructions as "reads", and the old type of writes as well as plain stores as "writes".\\
+Since we need to be able to determine if an intervening write overwrote the value written by an exclusive load, we introduce into our concept of a configuration a mapping function $\var{Mark}: \mathcal{X} \mapsto \mathcal{P} \cup \{\bot\}$. Here $\mathcal{X}$ includes addressable memory locations instead of variables as it did before: both are the same, except that variables do not have address dependencies. Accordingly, we also reuse the function $\var{var}$ to return the address of a load/store event. The idea is that any exclusive load "marks" the memory location with its originating process, while all other store based instructions simply overwrite the marker with $\bot$ to record that the location is dirty.\\
+We also make the following note: that the orders $\prec_\var{data}$ and $\prec_\var{addr}$ \textbf{exclude} the success-value write-to-registers by exclusive stores. This is because the herd model does not consider these to be coherence-relate. It can be microarchitecturally understood as thus: the processor assumes the store will succeed and proceeds with everything; if it fails the dependent instructions are squashed. Thus the future instructions may see the success value before the exclusive store is committed. \\
+There is one more note of importance: the \textit{Fetch} rule is purely cosmetic: it is more intuitive to present a Fetch rule so as to encapsulate the out-of-order execution, however \textit{it could simply be merged with the init/commit rules}. Subsequently, our code-to-code translation scheme (presented later) \textbf{does not make use of the fetch rule} (i.e. incorporates it as a part of the other rules).\\
+We next define a bunch of predicates which will prove to be useful in stating the transition rules.\\
+\begin{center}
+ \begin{longtable}{||c | c | c||} 
+ \hline
+ \textbf{Predicate} & \textbf{Definition} & \textbf{Meaning} \\ [0.5ex] 
+ \hline\hline
+ \makecell{$\mathbb{e} \in \mathbb{E}$ :\\$\texttt{AllDmbLds}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}^\texttt{DmbLd}$ :\\$((\mathbb{e'} \prec \mathbb{e}) \implies \texttt{status}(\mathbb{e}') = \texttt{com}))$} & \makecell{All po-previous \var{dmb.ld}'s have\\ been commited.} \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}$ :\\$\texttt{AllDmbSts}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}^\texttt{DmbSt}$ :\\$((\mathbb{e'} \prec \mathbb{e}) \implies \texttt{status}(\mathbb{e}') = \texttt{com}))$} & \makecell{All po-previous \var{dmb.st}'s have\\ been commited.}  \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}$ :\\$\texttt{AllDmbSys}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}^\texttt{DmbSy}$ :\\$((\mathbb{e'} \prec \mathbb{e}) \implies \texttt{status}(\mathbb{e}') = \texttt{com}))$} & \makecell{All po-previous \var{dmb.sy}'s have\\ been commited.} \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\var{STL} \cup \mathbb{E}^\var{STLX} \cup \mathbb{E}^\var{DmbSt}$ :\\$\texttt{AllWrites}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}^\var{ST} \cup \mathbb{E}^\texttt{STL} \cup \mathbb{E}^\texttt{STX} \cup \mathbb{E}^\texttt{STLX}$ :\\$((\mathbb{e'} \prec \mathbb{e}) \implies \texttt{status}(\mathbb{e}') = \texttt{com}))$} & \makecell{All \var{po}-previous write-variants\\ have been commited.} \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\var{STL} \cup \mathbb{E}^\var{STLX} \cup \mathbb{E}^\var{DmbLd}$ :\\$\texttt{AllReads}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}^\var{LD} \cup \mathbb{E}^\texttt{LDA} \cup \mathbb{E}^\texttt{LDX} \cup \mathbb{E}^\texttt{LDAX}$ :\\$((\mathbb{e'} \prec \mathbb{e}) \implies \texttt{status}(\mathbb{e}') = \texttt{com}))$} & \makecell{All \var{po}-previous read-variants\\ have been commited.} \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}$ :\\$\texttt{AllSyncs}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}^\texttt{DmbSy} \cup \mathbb{E}^\texttt{Isb}$ :\\$((\mathbb{e'} \prec \mathbb{e}) \implies \texttt{status}(\mathbb{e}') = \texttt{com}))$}  & \makecell{All po-previous \var{dmb.sy}'s and\\ \var{isb}'s have been commited.} \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\texttt{LDA} \cup \mathbb{E}^\texttt{LDAX}$ :\\$\texttt{AllSRels}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e} \in \mathbb{E}^\texttt{STL} \cup \mathbb{E}^\texttt{STLX}$ :\\$((\mathbb{e'} \prec \mathbb{e}) \implies \texttt{status}(\mathbb{e}') = \texttt{com}))$} & \makecell{All \var{po}-previous Store-Releases\\ have been commited.}\\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\var{ST} \cup \mathbb{E}^\var{STX}$ :\\$\texttt{AllLAcqs}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall\mathbb{e}' \in \mathbb{E}^\texttt{LDA} \cup \mathbb{E}^\texttt{LDAX}$ :\\$((\mathbb{e'} \prec \mathbb{e}) \implies \texttt{status}(\mathbb{e}') = \texttt{com}))$} & \makecell{All \var{po}-previous Load-Acquires \\have been committed.}\\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\var{STL} \cup \mathbb{E}^\var{STLX}$ :\\$\texttt{AllMem}(\mathbb{c},\mathbb{e})$} & \makecell{$\texttt{AllWrites}(\mathbb{c},\mathbb{e}) \wedge \texttt{AllReads}(\mathbb{c},\mathbb{e})$} & \makecell{All \var{po}-previous events that\\ access memory have been\\ committed.}\\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}$ :\\$\texttt{AllBarriers}(\mathbb{c},\mathbb{e})$} & \makecell{$\texttt{AllDmbLds}(\mathbb{c},\mathbb{e}) \wedge \texttt{AllDmbSts}(\mathbb{c},\mathbb{e}) \wedge \texttt{AllSyncs}(\mathbb{c},\mathbb{e})$} & \makecell{All \var{po}-previous barriers\\have been committed.}\\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\var{ST} \cup \mathbb{E}^\var{STL} $ : \\
+ $\texttt{InitCnd}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}$ :\\$(\mathbb{e}' \prec_\texttt{data} \mathbb{e}) \vee (\mathbb{e}' \prec_\texttt{addr} \mathbb{e})$ \\ $\implies$ \\ $(\texttt{status}(\mathbb{e'}) = \texttt{com}))$ } & \makecell{All events on which $\mathbb{e}$ is\\ dependent on have\\ already been committed. } \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\var{Isb} \cup \mathbb{E}^\var{ST} \cup \mathbb{E}^\var{STL}$\\$\cup \mathbb{E}^\var{STX} \cup \mathbb{E}^\var{STLX} $ : \\
+ $\var{AddrCnd}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}^\var{LD} \cup \mathbb{E}^A \cup \mathbb{E}^\var{LDA} \cup \mathbb{E}^\var{LDX} \cup \mathbb{E}^\var{LDAX}, \mathbb{e}'' \in \mathbb{E}$ :\\$(\mathbb{e}' \prec_\texttt{addr} \mathbb{e}'') \wedge (\mathbb{e}'' \prec_\texttt{po} \mathbb{e})$ \\ $\implies$ \\ $((\texttt{status}(\mathbb{e'}) = \texttt{init}) \vee (\texttt{status}(\mathbb{e}') = \texttt{com}))$ } & \makecell{All events \var{po}-before $\mathbb{e}$ have\\ fully defined memory footprints. } \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}$ :\\ $\texttt{IsWrite}(\mathbb{e})$} & \makecell{$\mathbb{e} \in \mathbb{E}^\var{ST} \vee \mathbb{e} \in \mathbb{E}^\var{STL}$\\$\vee \mathbb{e} \in \mathbb{E}^\var{STX} \vee \mathbb{e} \in \mathbb{E}^\var{STLX}$} & \makecell{Event $\mathbb{e}$ is a write.}  \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}$ :\\ $\texttt{IsSync}(\mathbb{e})$} & \makecell{$\mathbb{e} \in \mathbb{E}^\var{DmbSy} \vee \mathbb{e} \in \mathbb{E}^\var{Isb}$} & \makecell{Event $\mathbb{e}$ is a \var{dmb.sy} or \var{isb}.}  \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}$ :\\ $\texttt{ComCnd}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e'} \in \mathbb{E}$ :\\$(((\mathbb{e}' \prec_\texttt{data} \mathbb{e}) \vee (\mathbb{e'} \prec_\texttt{ctrl} \mathbb{e} \wedge $\\$(\var{IsWrite}(\mathbb{e})\vee \var{IsSync}(\mathbb{e}))) \vee$\\$(\mathbb{e'} \prec_\texttt{poloc} \mathbb{e}) \vee (\mathbb{e'} \prec_\texttt{addr} \mathbb{e}))\implies$ \\ $(\texttt{status}(\mathbb{e'}) = \texttt{com}))$} & \makecell{All events preceding $\mathbb{e}$ in $\prec_\texttt{data}$, $\prec_\var{addr}$,\\ $\prec_\texttt{poloc}$ and if $\mathbb{e}$ is a write or a barrier,\\ in $\prec_\texttt{ctrl}$, have already been commited.}  \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}$ :\\ $\texttt{RdComCnd}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}$ :\\$((\mathbb{e}' \prec_\texttt{data} \mathbb{e}) \vee (\mathbb{e}' \prec_\texttt{addr} \mathbb{e}) \implies$ \\ $(\texttt{status}(\mathbb{e}') = \texttt{com})$\\$\wedge (\mathbb{e} \in \mathbb{E}^\var{LDX} \cup \mathbb{E}^\var{LDAX}) \implies$\\$\forall \mathbb{e}' \in \mathbb{E}^\var{STX} \cup \mathbb{E}^\var{STLX}. (\var{status}(\mathbb{e}) \neq \var{init})$ } & \makecell{All events on which $\mathbb{e}$ is\\ dependent on\\ have already been initialized.\\ Further no prior store-exclusive\\ is in it's init-stage (to\\ avoid spurious successes of ST(L)X's).} \\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\var{A}:$\\$\var{AssignComCnd}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}:$\\$((\mathbb{e}' \prec \mathbb{e}) \wedge (\var{RegWritten}(\mathbb{e}') \in \var{OpRegs}(\mathbb{e})) \wedge$\\$\not\exists \mathbb{e}'' \var{s.t.} ((\mathbb{e}' \prec \mathbb{e''} \prec \mathbb{e}) \wedge$\\$ (\var{RegWritten}(\mathbb{e}') = \var{RegWritten}(\mathbb{e}'')))$\\$\implies (\var{status}(\mathbb{e}') = \var{com})$} & \makecell{The closest events writing to\\ any register that $\mathbb{e}$ reads from\\ have all been committed.}\\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\var{LD} \cup \mathbb{E}^\var{LDA} \cup \mathbb{E}^\var{LDX} \cup \mathbb{E}^\var{LDAX}:$\\$\var{ReadFromNewEvent}(\mathbb{c},\mathbb{e})$} & \makecell{$\exists \mathbb{e}' \in \mathbb{E}^\var{LD} \cup \mathbb{E}^\var{LDA} \cup \mathbb{E}^\var{LDX} \cup \mathbb{E}^\var{LDAX}:$\\$(\mathbb{e}' \prec \mathbb{e}) \wedge (\var{rf}(\mathbb{e}') \neq \var{rf}(\mathbb{e})) \wedge$\\$(\forall \mathbb{e}' \in  \mathbb{E}^\var{LD} \cup \mathbb{E}^\var{LDA} \cup \mathbb{E}^\var{LDX} \cup \mathbb{E}^\var{LDAX}.$\\$\mathbb{e}'' \prec \mathbb{e} \implies \mathbb{e}'' \prec \mathbb{e}')$} & \makecell{The closest read event reading from\\ the same location does so from\\ a different event than that of $\mathbb{e}$.}\\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\var{LD} \cup \mathbb{E}^\var{LDA} \cup \mathbb{E}^\var{LDX} \cup \mathbb{E}^\var{LDAX}:$\\$\var{ReadExtComCnd}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}^\var{LD} \cup \mathbb{E}^\var{LDA} \cup \mathbb{E}^\var{LDX} \cup \mathbb{E}^\var{LDAX}$ :\\$\var{ReadFromNewEvent}(\mathbb{c},\mathbb{e}) \implies$ \\ $\texttt{status}(\mathbb{e}') = \texttt{com}$} & \makecell{The coherence order of $\mathbb{e}$ w.r.t\\ previous reads is maintained.}\\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\var{LDA} \cup \mathbb{E}^\var{LDAX}:$\\$\var{AcquireComCnd}(\mathbb{c},\mathbb{e})$} & \makecell{$\forall \mathbb{e}' \in \mathbb{E}^\var{ST} \cup \mathbb{E}^\var{STL} \cup \mathbb{E}^\var{STX} \cup \mathbb{E}^\var{STLX}$ :\\$(\mathbb{e}' \in \mathbb{E}^\var{STX} \cup \mathbb{E}^\var{STLX}) \vee (\exists \mathbb{e}'' \in \mathbb{E}^\var{LDX} \cup \mathbb{E}^\var{LDAX}.$\\$\forall \mathbb{e}''' \in \mathbb{E}^\var{STX} \cup \mathbb{E}^\var{STLX}. \mathbb{e}''' \prec \mathbb{e}' \implies \mathbb{e}''' \prec \mathbb{e}'')$\\$\implies (\texttt{status}(\mathbb{e}') = \texttt{com})$} & \makecell{All write events part of or sandwiched\\ between a load exclusive-store exclusive\\ pair have already been commited.}\\
+ \hline
+ \makecell{$\mathbb{e} \in \mathbb{E}^\var{STX} \cup \mathbb{E}^\var{STLX}:$\\$\var{SuccessCnd}(\mathbb{c},\mathbb{e})$} & \makecell{$\var{mark}(\mathbb{e}) = \var{proc}(\mathbb{e})$} & \makecell{There has been no\\ write to a location by any event\\ after the \var{po}-closest\\ load-exclusive by the same process.}\\
+ \hline
+ \hline
+\end{longtable}
+\end{center}
+\section{Rules with synchronization conditions}
+For each of the rules below, $\mathbb{c}$ is the configuration before the rule, and is of the form $\langle\mathbb{E}, \prec, \var{ins}, \var{status}, \var{rf}, \var{Prop}, \var{Mark}\rangle$. The rules describe one possible way in which this configuration may evolve. The initial configuration is $\langle \emptyset, \emptyset, \lambda i. \emptyset, \lambda i. \emptyset, \lambda i.\emptyset, \lambda i. 0, \lambda i. \bot\rangle$.
+$$\frac{\mathbb{e} \in \mathbb{E}_p, \hspace{1em} \prec' = \prec \cup \{\langle\mathbb{e}',\mathbb{e}\rangle | \mathbb{e}' \in \mathbb{E}_p\}, \hspace{1em} i \in \texttt{MaxI}(\mathbb{c},p)}{\mathbb{c} \xrightarrow{p} \langle \mathbb{E} \cup \mathbb{e}, \prec', \texttt{ins}[\mathbb{e} \leftarrow i], \texttt{status}[\mathbb{e} \leftarrow \texttt{fetch}], \texttt{rf}, \texttt{Prop}, \var{Mark}\rangle}\texttt{Fetch}$$
+$$\mspace{-150mu}\mathbb{e} \in \mathbb{E}_p^\var{LD}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{RdComCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} $$
+\vspace{-1.2em}$$ \frac{\texttt{AllDmbLds}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllLacqs}(\mathbb{c},\mathbb{e}), \hspace{1em} \mathbb{e}' = CW(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{status}(\mathbb{e}') = \texttt{init}}{\mathbb{c} \xrightarrow{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}[\mathbb{e} \leftarrow \mathbb{e}'], \texttt{Prop}, \var{Mark} \rangle} \texttt{ComLDFromLocal}$$
+$$\mspace{-150mu}\mathbb{e} \in \mathbb{E}_p^\var{LD}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllDmbLds}(\mathbb{c},\mathbb{e}), \hspace{1em} \var{ReadExtComCnd}(\mathbb{c},\mathbb{e}),$$
+\vspace{-1.2em}$$ \frac{\texttt{AllLacqs}(\mathbb{c},\mathbb{e}), \hspace{1em} (CW(\mathbb{c},\mathbb{e}) = \bot) \vee (CW(\mathbb{c},\mathbb{e}) = \mathbb{e}' \wedge \texttt{status}(\mathbb{e}') = \texttt{com}), \hspace{1em} \texttt{RdComCnd}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}[\mathbb{e} \leftarrow \texttt{Prop}(\texttt{Var}(\mathbb{c},\mathbb{e}))], \texttt{Prop}, \var{Mark}\rangle} \texttt{ComLDFromProp}$$
+$$\mspace{-150mu}\mathbb{e} \in \mathbb{E}_p^\var{LDX}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{RdComCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} $$
+\vspace{-1.2em}$$ \frac{\texttt{AllDmbLds}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllLacqs}(\mathbb{c},\mathbb{e}), \hspace{1em} \mathbb{e}' = CW(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{status}(\mathbb{e}') = \texttt{init}}{\mathbb{c} \xrightarrow{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}[\mathbb{e} \leftarrow \mathbb{e}'], \texttt{Prop}, \var{Mark}[\var{var}(\mathbb{e}) \gets \var{proc}(\mathbb{e})]\rangle} \texttt{ComLDXFromLocal}$$
+$$\mspace{-150mu}\mathbb{e} \in \mathbb{E}_p^\var{LDX}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllDmbLds}(\mathbb{c},\mathbb{e}), \hspace{1em} \var{ReadExtComCnd}(\mathbb{c},\mathbb{e}),$$
+\vspace{-1.2em}$$ \frac{\texttt{AllLacqs}(\mathbb{c},\mathbb{e}), \hspace{1em} (CW(\mathbb{c},\mathbb{e}) = \bot) \vee (CW(\mathbb{c},\mathbb{e}) = \mathbb{e}' \wedge \texttt{status}(\mathbb{e}') = \texttt{com}), \hspace{1em} \texttt{RdComCnd}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}[\mathbb{e} \leftarrow \texttt{Prop}(\texttt{Var}(\mathbb{c},\mathbb{e}))], \texttt{Prop}, \var{Mark}[\var{var}(\mathbb{e}) \gets \var{proc}(\mathbb{e})]\rangle} \texttt{ComLDXFromProp}$$
+$$\mspace{-150mu}\mathbb{e} \in \mathbb{E}_p^\var{LDA}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllSRels}(\mathbb{c},\mathbb{e}), \hspace{1em} \var{AcquireComCnd}(\mathbb{c},\mathbb{e}),$$
+\vspace{-1.2em}$$ \frac{\texttt{AllDmbLds}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllLacqs}(\mathbb{c},\mathbb{e}), \hspace{1em} \mathbb{e}' = CW(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{status}(\mathbb{e}') = \texttt{init}, \hspace{1em} \texttt{RdComCnd}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}[\mathbb{e} \leftarrow \mathbb{e}'], \texttt{Prop} , \var{Mark}\rangle} \texttt{ComLDAFromLocal}$$
+$$\mspace{-150mu}\mathbb{e} \in \mathbb{E}_p^\var{LDA}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllLacqs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{RdComCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} \var{ReadExtComCnd}(\mathbb{c},\mathbb{e}),$$
+\vspace{-1.2em}$$ \frac{\texttt{AllDmbLds}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllSRels}(\mathbb{c},\mathbb{e}), \hspace{1em} \var{AcquireComCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} (CW(\mathbb{c},\mathbb{e}) = \bot) \vee (CW(\mathbb{c},\mathbb{e}) = \mathbb{e}' \wedge \texttt{status}(\mathbb{e}') = \texttt{com})}{\mathbb{c} \xrightarrow{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}[\mathbb{e} \leftarrow \texttt{Prop}(\texttt{Var}(\mathbb{c},\mathbb{e}))], \texttt{Prop}, \var{Mark}\rangle} \texttt{ComLDAFromProp}$$
+$$\mspace{-150mu}\mathbb{e} \in \mathbb{E}_p^\var{LDAX}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllSRels}(\mathbb{c},\mathbb{e}), \hspace{1em} \var{AcquireComCnd}(\mathbb{c},\mathbb{e}),$$
+\vspace{-1.2em}$$ \frac{\texttt{AllDmbLds}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllLacqs}(\mathbb{c},\mathbb{e}), \hspace{1em} \mathbb{e}' = CW(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{status}(\mathbb{e}') = \texttt{init}, \hspace{1em} \texttt{RdComCnd}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}[\mathbb{e} \leftarrow \mathbb{e}'], \texttt{Prop} , \var{Mark}[\var{var}(\mathbb{e}) \gets \var{proc}(\mathbb{e})]\rangle} \texttt{ComLDAXFromLocal}$$
+$$\mspace{-150mu}\mathbb{e} \in \mathbb{E}_p^\var{LDAX}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllLacqs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{RdComCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} \var{ReadExtComCnd}(\mathbb{c},\mathbb{e}),$$
+\vspace{-1.2em}$$ \frac{\texttt{AllDmbLds}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllSRels}(\mathbb{c},\mathbb{e}), \hspace{1em} \var{AcquireComCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} (CW(\mathbb{c},\mathbb{e}) = \bot) \vee (CW(\mathbb{c},\mathbb{e}) = \mathbb{e}' \wedge \texttt{status}(\mathbb{e}') = \texttt{com})}{\mathbb{c} \xrightarrow{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}[\mathbb{e} \leftarrow \texttt{Prop}(\texttt{Var}(\mathbb{c},\mathbb{e}))], \texttt{Prop}, \var{Mark}[\var{var}(\mathbb{e}) \gets \var{proc}(\mathbb{e})]\rangle} \texttt{ComLDAXFromProp}$$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^\var{ST} \cup \mathbb{E}_p^\var{STL} \cup \mathbb{E}_p^\var{STX} \cup \mathbb{E}_p^\var{STLX}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{InitCnd}(\mathbb{c},\mathbb{e}),}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{init}], \texttt{rf}, \texttt{Prop}, \var{Mark}\rangle} \texttt{InitWrite}$$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^\var{STX} \cup \mathbb{E}_p^\var{STLX}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}, \texttt{Prop}, \var{Mark}\rangle} \texttt{ComFailExclusiveWrite}$$
+$$\mathbb{e} \in \mathbb{E}_p^\var{ST}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{init}, \hspace{1em} \texttt{ComCnd}(\mathbb{c},\mathbb{e}),\hspace{1em} \var{AddrCnd}(\mathbb{c},\mathbb{e}),$$
+\vspace{-1.2em}$$\frac{\hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em}\texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em}\texttt{AllDmbLds}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllLAcqs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllDmbSts}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}, \texttt{Prop}[\texttt{var}(\mathbb{e}) \leftarrow \mathbb{e}], \var{Mark}[\var{var}(\mathbb{e}) \gets \bot]\rangle} \texttt{ComST}$$
+$$\mathbb{e} \in \mathbb{E}_p^\var{STL}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{init}, \hspace{1em} \texttt{ComCnd}(\mathbb{c},\mathbb{e}),\hspace{1em} \var{AddrCnd}(\mathbb{c},\mathbb{e}),$$
+\vspace{-1.2em}$$\frac{\hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em}\texttt{AllDmbLds}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllMem}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllDmbSts}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}, \texttt{Prop}[\texttt{var}(\mathbb{e}) \leftarrow \mathbb{e}], \var{Mark}[\var{var}(\mathbb{e}) \gets \bot]\rangle} \texttt{ComSTL}$$
+$$\mathbb{e} \in \mathbb{E}_p^\var{STX}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{init}, \hspace{1em} \texttt{ComCnd}(\mathbb{c},\mathbb{e}),\hspace{1em} \var{AddrCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} \var{SuccessCnd}(\mathbb{c},\mathbb{e}),$$
+\vspace{-1.2em}$$\frac{\hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em}\texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em}\texttt{AllDmbLds}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllLAcqs}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllDmbSts}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{init}], \texttt{rf}, \texttt{Prop}[\var{var}(\mathbb{e}) \gets \mathbb{e}], \var{Mark}[\var{var}(\mathbb{e}) \gets \bot]\rangle} \texttt{ComSuccessSTX}$$
+$$\mathbb{e} \in \mathbb{E}_p^\var{STLX}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{init}, \hspace{1em} \texttt{ComCnd}(\mathbb{c},\mathbb{e}),\hspace{1em} \var{AddrCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} \var{SuccessCnd}(\mathbb{c},\mathbb{e}),$$
+\vspace{-1.2em}$$\frac{\hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em}\texttt{AllSyncs}(\mathbb{c},\mathbb{e}), \hspace{1em}\texttt{AllDmbLds}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllMem}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllDmbSts}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{init}], \texttt{rf}, \texttt{Prop}[\var{var}(\mathbb{e}) \gets \mathbb{e}], \var{Mark}[\var{var}(\mathbb{e}) \gets \bot]\rangle} \texttt{ComSuccessSTLX}$$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^\texttt{DmbSy}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{ComCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllMem}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllBarriers}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}, \texttt{Prop}\rangle} \texttt{ComDmbSy} $$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^\texttt{Isb}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{ComCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} \var{AddrCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllDmbSys}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}, \texttt{Prop}\rangle} \texttt{ComIsb} $$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^\texttt{DmbLd}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{ComCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllReads}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllDmbSys}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}, \texttt{Prop}, \var{Mark}\rangle} \texttt{ComDmbLd} $$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^\texttt{DmbSt}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{ComCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllWrites}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllDmbSys}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}, \texttt{Prop}, \var{Mark}\rangle} \texttt{ComDmbSt} $$
+$$\frac{\mathbb{e} \in \mathbb{E}_p^\texttt{ACI}, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{ComCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{ValidCnd}(\mathbb{c},\mathbb{e}), \hspace{1em} \texttt{AllSyncs}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}, \texttt{Prop}, \var{Mark}\rangle} \texttt{ComACI} $$
+We explain the above rules as thus:
+\begin{itemize}
+    \setlength\itemsep{0em}
+    \item The \texttt{Fetch} rule is the same as before (and is cosmetic as explained above).
+    \item We need the following pre-conditions to hold for committing a non-acquire read (exclusive as well as not) event $\mathbb{e}$ (from either local uncommitted events or memory):
+        \begin{enumerate}
+            \setlength\itemsep{0em}
+            \item For all events $\mathbb{e}'$ that are poloc-predecessors of $\mathbb{e}$, $\mathbb{e}'$ must have been initialized.
+            \item All \var{dmb.sy}, \var{isb} and \var{dmb.ld} instructions that are po-predecessors of $\mathbb{e}$ have been committed.
+            \item All po-preceeding load acquire instructions have been committed.
+            \item All \var{data} and \var{addr} dependents have committed.
+        \end{enumerate}
+    \item The rule for committing an acquire-read (exclusive as well as not) is similar to that above, but with the extra condition that all \var{po}-previous Store Releases have been committed. Further, all writes \var{po}-before the read that are a part of an LX-SX block should also have been committed.
+    \item One condition required for committing for any kind of write needs that we know the "memory footprint", i.e. address of all \var{po}-previous memory access events is known.
+    \item To initialize a (non-exclusive, non-release) write, along with an \texttt{InitCnd} that we had previously (but which also includes address dependencies now), we need the following condition to hold: all po-previous \var{dmb.sy}, \var{isb}, \var{dmb.ld}, \var{dmb.st}, and Load Acquire instructions have been committed.
+    \item To initialize a release- but non-exclusive write (\var{STL}), instead of just load-acquires, we need \textit{all} \var{po}-preceding memory access instructions to have been committed.
+    \item To commit any write, two of the conditions required are \var{ComCnd} and \var{AddrCnd}. The latter postulates that all \var{po}-previous events have well defined memory footprints. However, note that the success-value-writes of exclusive stores to registers are not bound by any \var{addr} or \var{data} relations.
+    \item The exclusive versions of the two kinds of writes are to be directly committed and failed at any point - even before the address has been resolved (this is in fact tested by a litmus test). If instead they are to succeed, they need to go through the regular \var{init} and \var{commit} steps.
+    \item The condition for committing a non-exclusive write is similar to other writes, with the added condition that checks for success.
+    \item All ACI and barrier instructions have only one transition: from fetch to commit. Across all of them, the \texttt{ComCnd} and \texttt{ValidCnd} are common conditions, as is the condition that all \var{dmb.sy}'s have been committed (for \var{ACI}'s and \var{dmb.sy}'s we also need \var{po}-previous \var{isb}'s to have been committed). Apart from this,
+    \begin{enumerate}
+        \setlength\itemsep{0em}
+        \item For \var{dmb.sy}'s we need all \var{po}-previous memory access instructions to have committed.
+        \item For \var{isb}'s we need all \var{po}-previous memory access instructions to have fully defined memory footprints.
+        \item For \var{dmb.ld}'s we need all \var{po}-previous load (read and load acquire) instructions to have been committed.
+        \item For \var{dmb.st}'s we need all \var{po}-previous stores (write and store release) instructions to have been committed.
+    \end{enumerate}
+\end{itemize}
+\textbf{Assign instructions.} The Herd or the Flat model do not explicitly handle assign instructions. Consider the hypothetical scenario where we assign the value of a register $\$r_1$ to a register $\$r_2$. We would then want the latter to be able to \var{init}/\var{commit} just after but no before the former. Generalizing this to any assign, we postulate that an assign can \var{commit} once all of it's operands (unless they are literals) have \var{commit}ed. We also corroborate the validity of this rule via litmus tests. Note that this rule is, in a sense, not a central rule: it is not directly modelled by Herd of Flat, and it's only purpose is to act as a bridge connected many producing \var{LD}*'s to an event. Thus, it is, in effect, a syntactic sugar and does not represent a "real" (i.e. interfacing with memory) event.\\
+$$\frac{\mathbb{e} \in \mathbb{E}_p^A, \hspace{1em} \texttt{status}(\mathbb{e}) = \texttt{fetch}, \hspace{1em} \texttt{AssignComCnd}(\mathbb{c},\mathbb{e})}{\mathbb{c} \xrightarrow[]{p} \langle \mathbb{E}, \prec, \texttt{ins}, \texttt{status}[\mathbb{e} \leftarrow \texttt{com}], \texttt{rf}, \texttt{Prop}\rangle} \texttt{ComAssign}$$
+\section{Proof of equivalence to the Herd Model}
+We give here the proof of equivalence of the above model to the Herd model, as found in section B2.3 of the ARM developer manual. There are two main conditions for the equivalence to hold: the \textcolor{red}{internal} and the \textcolor{blue}{external} visibility requirements. We do not take into account tag reads or tag writes since our model does not include them. We use the \var{.cat} file available at \cite{catfile} for our purposes of specification: we note that the requirements are stated as predicates over possible orderings, and are as follows:\\
+\noindent\begin{minipage}{.45\textwidth}
+\begin{lstlisting}[language=ML]
+(* Internal visibility requirement *)
+let po-loc =
+  let Exp = M\domain(tob) in
+  (po-loc & Exp*Exp) | (po & tlo)
+acyclic po-loc | ca | rf as internal
+
+(* External visibility requirement *)
+irreflexive ob as external
+
+(* Observed-by *)
+let obs = rfe | fre | coe
+\end{lstlisting}
+\end{minipage}\hfill
+\begin{minipage}{.45\textwidth}
+\begin{lstlisting}[language=ML]
+(* Ordered-before *)
+let rec ob = obs; si
+        | lob
+	| ob; ob
+	
+(* Locally-ordered-before *)
+let rec lob = lws; si
+            | dob
+            | aob
+            | bob
+            | tob
+            | lob; lob
+\end{lstlisting}
+\end{minipage}\\
+Above, \var{po-loc}, \var{ca} and \var{rf} stand for meanings consistent with our definitions, and \var{lob} stands for "locally-ordered-before". Further, \var{rfe} stands for "read-from-\textit{external}", and so on. The constituents of \var{lob} are further elaborated as:\\
+\noindent\begin{minipage}{.40\textwidth}
+\begin{lstlisting}[language=ML]
+(* Local write successor *)
+let lws = po-loc; [W]
+
+(* Atomic-ordered-before *)
+let aob = rmw
+	| [range(rmw)]; lrs; [A | Q]
+	
+(* Barrier-ordered-before *)
+let bob = po; [dmb.full]; po
+        | po; ([A];amo;[L]); po
+	| [L]; po; [A]
+	| [R\NoRet]; po; [dmb.ld]; po
+	| [A | Q]; po
+	| [W]; po; [dmb.st]; po; [W]
+	| po; [L]
+\end{lstlisting}
+\end{minipage}\hfill
+\begin{minipage}{.55\textwidth}
+\begin{lstlisting}[language=ML]
+(* Local read successor *)
+let lrs = [W]; (po-loc \ (po-loc;[W];po-loc)); [R]
+
+(* Read-modify-write *)
+let rmw = lxsx | amo
+
+(* Dependency-ordered-before *)
+let dob = addr | data
+	| ctrl; [W]
+	| (ctrl | (addr; po)); [ISB]; po; [R]
+	| addr; po; [W]
+	| (addr | data); lrs
+\end{lstlisting}
+\end{minipage}\\
+Above, \var{si} relates events belonging to the same instruction, and range refers to all the events constituting the \var{rmw} block (i.e., the read, the comparison and the write). Also, \var{[A]} and \var{[L]} refer to acquire and release instructions, respectively.\\
+We further comment that we do not support \var{amo}-type instructions for simplicity. However, it is straightforward to extend the model to create rules for \var{amo} instruction. We call our model as \var{ARM'} and the model presented above as \var{ARM}. We wish to show that $\var{ARM'} \equiv \var{ARM}$. For this, we prove subsumption in both directions below. Note that we do not consider the \var{tob} condition since we do not support tags in our model. Further, for our purposes \var{rmw} is equivalent to a \var{lx+sx} pair due to non-existence of \var{amo} instructions under our model. We omit assign events in the following proof since the Herd model does not talk about it; however note that since an assign can take any transition once all of it's operands have, adding an assign is simply equivalent to conjunction of multiple \var{data} dependencies. As mentioned above, we also verify this through extensive litmus testing.
+\subsection{All execution traces valid under \var{ARM'} are valid under \var{ARM}}
+First consider the \textcolor{red}{internal visibility requirements}. Note that due to the rules, read events always read from either the main memory or from the closest \var{po}-before write. We also have that writes need all dependents to have been committed before the former are initialized. Consequently, from the above two, the locally observed \var{poloc}-order is acyclic. Further, \var{ca} simply stems from \var{poloc}-order in the case of writes. For \var{rf}, note that when a read is committed, it's closest write must have either initialized (if it reads via forwarding) or have been committed (if it reads from main memory). In either case, if the event it reads from belongs to the same thread must have already at least been initialized, preserving the \var{rf} order. Thus no cycle may exist among these pairs: hence the internal order is acyclic, as needed.\\
+Next we come to the \textcolor{blue}{external visibility constraints}. For \var{rfe}, note that an event can only read from an event via main memory if the latter has been committed already, preserving \var{rfe}. Further, an event cannot read from an event that commits after it, preserving the \var{fre} order. In addition, \var{coe} is obviously preserved among write-write and read-write pairs since after a write event $\mathbb{e}_1$ "overwrites" another write event $\mathbb{e}_2$, no event can read from $\mathbb{e}_2$ ever again. Finally, we come to read-read pairs. If two consecutive reads $r_1$ and $r_2$ (not separated by a write; otherwise the ordering follows trivially from the read-write-read ordering) read from different events we require their ordering to be consistent with the requirement of coherence. Note that this case cannot arise in the case of forwarding since forwarding will happen from the \var{po}-closest write which would be the same for both. In the case of reading from main memory, the \var{ReadExtCnd} ensures preservation of coherence order. These imply that the partial order \var{obs} is preserved.\\
+Further, from \var{ComCnd} we conclude that \var{lws} is preserved.\\
+Next we tackle \var{dob}. The first line is obviously satisfied since \var{ComCnd}/\var{RdComCnd} enforces preservation of \var{addr} and \var{data} dependencies. Further, note that \var{ComCnd} also enforces the second line of \var{dob}. In addition, the \var{AddrCnd} appears in all the write-commit rules and ensures that the fourth line of \var{dob} is respected. The third line holds because a) When committing an \var{ISB} event, the \var{AddrCnd} and \var{ComCnd} ensure the first half of the order holds; and b) We require all \var{ISB}'s to have been committed while committing reads. Note: We require this even for writes, but note that anyway writes have to commit after any event they are dependent on via \var{ctrl} or \var{addr;po} so this is a redundant clause and causes no extra conditions for writes. For the final line, note that we need reads to commit not before a write whose \var{lrs} the read is, is initialized. Further, said write can \var{init} only after it's address and data dependents have committed, effectively proving the last line of \var{dob}.\\ 
+In effect, we have proved that \var{dob} is preserved under \var{ARM'}.\\
+Next we come to \var{aob}. Since we do not model \var{amo} instructions, we can focus on \var{lx-sx} pairs exclusively. The listed condition is the same as our \var{AcquireComCnd}, and thus we conclude that the ordering \var{aob} is preserved.\\
+Next we come to \var{bob}. The first line follows since \var{dmb.sy}'s require virtually every preceding event (other than assigns) to have committed, and all events require every \var{po}-previous \var{dmb.sy} to have committed. The second line is not of consequence since we do not model \var{amo} instructions. The third follows from the \var{AllSRels} predicate appearing in the commit-rules for acquire-loads. The next follows from the predicate \var{AllReads} of \var{ComDmbLd} and \var{AllDmbLds} that appears while committing any read/write event. The line after that is respected since \var{AllLAcqs} appears in all read-write events. Similarly, the sixth line too is respected. Finally, the last line follows from the \var{AllMem} predicate that appears in the commit-rules for store-releases. This completes \var{bob}. We do not model tags and so \var{tob} is skipped.\\
+The final line of \var{lob} is transitivity which obviously holds here.\\
+Since \var{lws},\var{dob},\var{aob} and \var{bob} are preserved, so is \var{lob}. Further, since \var{obs} is also preserved, we conclude that \var{ob} is preserved. Hence, we have that $\var{ARM'} \subseteq \var{ARM}$.\\
+\subsection{All execution traces valid under \var{ARM} are valid under \var{ARM'}}
+To prove this direction, we must reconstruct all of the rules of our model from the predicates of the Herd model. The \var{Fetch} rule is not relevant, since given any run that is valid under \var{ARM}, one can imagine an equivalent run under \var{ARM'}, where every instruction is fetched just before it is initialized (so we only need to prove the validity of other rules).\\
+Consider the \var{ComLDFrom}* rules. The \var{AllSyncs} predicate is justified by the first line of \var{bob} and the third line of \var{dob}. The \var{AllDmbLds} is justified by the fourth line of \var{bob}. Further, the \var{AllLacqs} predicate is justified by the fifth line of \var{bob}. Then, the condition that the closest read has been atleast initialized is derived from the local visibility condition on \var{ca}. Further, \var{RdComCnd} has two parts: \var{addr} and \var{data}. Both are justified using the first line of \var{dob}. Finally, the rule \var{ReadExtCnd} can be derived from the external visibility order - coherence, on reads.\\
+Next, in the \var{ComLDAFrom}* rules, the only extra predicates are \var{AllSRels} and \var{AcquireComCnd}. The former is justified using the third line of \var{bob}. The latter follows from the definition in the second line of \var{aob}.\\
+For \var{ComLDXFrom}* and \var{ComLDAX}* rules, the same arguments hold as above since they are functionally identical to the above two, and only differ in the update of the "mark" attribute.\\
+The rule \var{InitCnd} in \var{InitWrite} follows from the internal visibility condition, for the following reason: if writes could initialize before a read event that supplies, e.g. their data is committed, then we could have a scenario where this same read event reads-from that write, violating the acyclicity of local visibility. The \var{AllSyncs}, \var{AllDmbLds} and \var{AllLacqs} for committing writes are explained as for reads. The \var{AllDmbSts} predicate follows from the sixth line of \var{bob}. Also, the part of \var{ComCnd} about ACI events is due to the second line of \var{dob}.\\
+The only extra predicate in the case of \var{ComSTL} is \var{AllMem} (which subsumes \var{AllLacqs}). This is justified by referring to the last line of \var{bob}.\\
+Further, the \var{AddrCnd} is a consequence of the fourth line of \var{dob}. The \var{ComCnd} is as before, with the \var{poloc} order added in to respect the \var{ca} order (\var{coe} as appears in \var{obs}).\\
+For failing of exclusive writes, there are in fact no rules: they can fail even before any of their addresses are resolved, as mentioned before; consistent with our rule. This is further elaborated upon in a hand-crafted litmus test which is a part of our litmus suite. Lastly, if they succeed, they have the very same conditions as other stores. The onyl extra condition is the \var{SuccessCnd}, which is justified since it ensures that the write did in fact succeed. Note that, we could initialize an exclusive write expecting it to succeed and never be able to proceed with committing due to the violation of \var{SuccessCnd}: this does not emulate a real system but leads to a deadlock which does not affect reachability.\\
+For the \var{ComDmb}* rules, the respective lines of \var{bob} are enough justification. Further, for \var{dmb.sy}'s and \var{isb}'s, the first line of \var{bob} and the third line of \var{dob} imply the commit of \var{ACI} instructions as well.\\
+Thus, we have that $\var{ARM} \subseteq \var{ARM'}$.\\
+Combining this with the result of the previous subsection, we conclude that
+$$\boxed{\var{ARM}' \equiv \var{ARM}} $$
+\section{Context Bound Model Checking for ARM}
+In the spirit of Context Bound Model Checking, we propose a code-to-code translation from source code written under the ARMv8 model to one that runs under Sequential Consistency (SC), but with a bound on the maximum number of \textcolor{red}{contexts} of execution. Here, we define a \textcolor{red}{context} as a stretch of execution (across time) in which only one process is active. Thus, inside a single context, the program behaves exactly like SC to the executing process (and the other processes are not executing). This context-bound reduction was first pioneered by Lal and Reps \cite{lalreps}, and we adapt their approach (with the required changes) to fit the ARMv8 model. In particular, our code \textcolor{blue}{guesses} the global state (the state of the main memory) at all context switches. Then, our code simulates, for each process, the contexts in which it is active, starting from the respective guessed global states. In the end, we \textcolor{blue}{verify}, that for each context $k$, the process active in context $k$ \textit{transforms} the global state from that guessed at the end of context $k-1$ to that guessed at the end of context $k$. The advantage of this approach over naive simulation is that it avoids having to deal with cross-products of local spaces, and hence avoids the exponential blowup associated with it. As an end result, we have code that when run under SC successfully simulates all possible runs under the ARM v8 memory model that incur at most $k$ context switches. That is, Context Bound Model Checking is an efficient \textcolor{red}{under-approximation} to state reachability. Since it has been demonstrated before that most bugs are (as a general rule of thumb) reachable in a small number of context switches, our approach is an effective means of tackling the undecidability of the ARM v8 memory model.\\
+We first demonstrate the above method on the simple model introduced at the beginning of the document, and then proceed to adapt it to the whole model.
+\section{Code-to-code translation for reduction to SC (for the simple model) }
+For the sake of performing context-bound model checking, we next define the scheme for the code-to-code translation.
+\subsection{Scheme for the first part of model (without synchronization instructions)}
+Our translation scheme translates a program $Prog$ into a program $Prog^\clubsuit$ using the map function $\llbracket\cdot\rrbracket_K$. Let $\mathcal{P}$ and $\mathcal{X}$ be the set of processes and shared variables in our program. Then, the map $\llbracket\cdot\rrbracket_K$ replaces the variables of $Prog$ by $|\mathcal{P}|\cdot K$ copies of the set $\mathcal{X}$, along with a finite set of finite data structures defined below. Below, the function $\texttt{gen}$ takes in a finite set and returns a randomly chosen element of the set.\\
+$$\llbracket Prog \rrbracket_K \myeq \texttt{ vars: }x^* \hspace{0.5em} \langle \texttt{addvars} \rangle_K$$
+\vspace{-2em}
+$$\qquad\qquad\qquad\qquad\kern 6.5em\texttt{procs: }(\llbracket p \rrbracket_K)^* \kern 0.5em \langle \texttt{initProc} \rangle_K \kern 0.5em \langle \texttt{verProc} \rangle_K$$
+$$\llbracket p \rrbracket_K \myeq \;\texttt{regs: } \$r^*$$
+\vspace{-2em}
+$$\qquad\qquad\qquad\texttt{instrs: } (\llbracket i \rrbracket_K^p)^*$$
+$$\llbracket i \rrbracket_K^p \myeq l: \kern 0.5em \llbracket \texttt{s} \rrbracket_K^p $$
+$$\llbracket x \leftarrow exp \rrbracket_K^p \myeq \llbracket x \leftarrow exp \rrbracket_K^\texttt{p,Write}$$ 
+\vspace{-1.2em}
+$$\llbracket \$r \leftarrow x \rrbracket_K^p \myeq \llbracket \$r \leftarrow x \rrbracket_K^\texttt{p,Read}$$
+\vspace{-1.2em}
+$$\llbracket \$r \leftarrow exp \rrbracket_K^p \myeq \llbracket \$r \leftarrow exp \rrbracket_K^\texttt{p,Assign} $$
+\vspace{-1.2em}
+$$\llbracket \texttt{if } exp \texttt{ then }i^* \texttt{ else }i^* \rrbracket_K^p \myeq \texttt{if } exp \texttt{ then } (\llbracket i  \rrbracket_K^p)^* \texttt{ else } (\llbracket i \rrbracket_K^p)^*; \kern 0.5em \langle \texttt{control} \rangle_K^p$$
+\vspace{-1.2em}
+$$\llbracket \texttt{while } exp \texttt{ do }i^* \rrbracket_K^p \myeq \texttt{while } exp \texttt{ do } (\llbracket i \rrbracket_K^p)^*; \kern 0.5em \langle \texttt{control} \rangle_K^p$$
+\vspace{-1.2em}
+$$\llbracket \texttt{assume } exp \rrbracket_K^p \myeq \texttt{assume } exp ; \kern 0.5em \langle \texttt{control} \rangle_K^p$$
+\vspace{-1.2em}
+$$\llbracket \texttt{assert } exp \rrbracket_K^p \myeq \texttt{assert } exp ; \kern 0.5em \langle \texttt{control} \rangle_K^p$$
+\vspace{-1.2em}
+$$\llbracket\texttt{term}\rrbracket_K^p \myeq \texttt{term}$$
+\vspace{-1.2em}
+$$\langle \var{addvars} \rangle_K \myeq \mu(|\mathcal{X}|,K), \mu^{init}(|\mathcal{X}|,K), \nu(|\mathcal{P}|,|\mathcal{X}|),$$
+$$ \quad\var{cR}(|\mathcal{P}|,|\mathcal{X}|),$$
+$$ \quad\var{iW}(|\mathcal{P}|,|\mathcal{X}|), \var{cW}(|\mathcal{P}|,|\mathcal{X}|),$$
+$$ \quad\var{cReg}(|\mathcal{P}|,|\mathcal{R}|),$$
+$$ \quad\;\var{ctrl}(|\mathcal{P}|), \var{active}(K)$$
+\vspace{-1.2em}
+$$ \texttt{assume}(cnt \leq K)$$
+\vspace{-1.2em}
+$$ \langle \texttt{control} \rangle_K^p \myeq \texttt{ctrl}(p) \leftarrow \texttt{ctrl}(p) + \texttt{gen}(0,\cdots,K-1);$$
+\vspace{-1.7em}
+$$ \texttt{assume}(\texttt{ctrl}(p) \leq K)$$
+\subsection{Data Structures (for the model without synchronization)}
+We denote by $\mathcal{D}$ the domain of all possible values of expressions and variables. Our simulation maintains, as described above, a finite set of finite data structures. We explain each in turn. First, for each context $k$, we store the ID of the active process $p$ in the context $k$, using the mapping $\texttt{active}: [1,\cdots,K] \mapsto \mathcal{P}$. The mapping $\mu^{init}: \mathcal{X} \times [1,\cdots,K] \mapsto \mathcal{D}$ maintains, for each variable $x$ and context $k$ the last value of the variable $x$ that has been propagated to memory by any process \textit{upto the beginning of context $k$}. We also define the mapping $\mu: \mathcal{X} \times [1,\cdots,K] \mapsto \mathcal{D}$ as the counterpart of the above mapping that actually changes (gets updated) through the course of context $k$, i.e. at any given point in time covered by context $k$, $\mu(x,k)$ gives the latest value of variable $x$ propagated to memory until that point.  Further, the mapping $\nu: \mathcal{P} \times \mathcal{X} \mapsto \mathcal{D}$ denotes for each process $p$ and variable $x$ the latest value that has been written to $x$ by $p$. We also maintain the maps $$\texttt{iW}: \mathcal{P} \times \mathcal{X} \mapsto [1,\cdots,K]$$
+$$\texttt{cW}: \mathcal{P} \times \mathcal{X} \mapsto [1,\cdots,K]$$
+$$\texttt{cR}: \mathcal{P} \times \mathcal{X} \mapsto [1,\cdots,K]$$
+The first map indicates, for each process $p$ and variable $x$, the latest context in which a write on $x$ has been initialized by $p$. Similarly, the second one indicates for each such pair the latest context in which a write was committed by $p$. Similarly, we define $\var{cR}$ for committing reads.\\
+Since registers are shared among all processes, we need to define special mappings for them. Thus we define $\var{cReg}: \mathcal{P} \times \mathcal{R} \mapsto [1,\cdots,K]$ captures for each register $\$r$ the committing context of the latest read or assign event loading a value to $\$r$. We also extend this to expressions, by defining $\var{cReg}(p,exp) = \max \{\var{cReg}(p,\$r) | \$r \in \mathcal{R}(exp)\}$.
+Finally, the mapping $\var{ctrl}: \mathcal{P} \mapsto [1,\cdots,K]$ gives for each process $p$ the committing context of the latest \var{aci} event in $p$. The variable $cnt$ tracks the current context.\\
+The function \var{gen} is assumed to return, given a set $S$, a random element of $S$.
+\subsection{The initializing process}
+We next present the algorithm $\langle \var{initProc} \rangle_K$.\\
+\begin{algorithm}[H]
+  \SetAlgoLined
+  \For{$p \in \mathcal{P} \wedge x \in \mathcal{X}$}{
+    $\var{iR}(p,x) \gets 1$\; 
+    $\var{iW}(p,x) \gets 1$\;
+    $\var{cR}(p,x) \gets 1$\;
+    $\nu(p,x) \gets 0$\;
+    $\mu(p,x,1) \gets 0$\;
+    \For{$k \in [2,\cdots,K]$}{
+        $\mu^{init}(x,k) \gets \var{gen}(\mathcal D)$\;
+        $\mu(x,k) \gets \mu^{init}(p,x,k)$\;
+    }
+  }
+  \For{$p \in \mathcal{P}$}{
+    $\var{ctrl}(p) \gets 1$\;
+  }
+  \For{$\$r \in \mathcal{R}$}{
+    $\var{cReg}(p,\$r) \gets 1$\;
+  }
+  \For{$k \in [1,\cdots,K]$}{
+    $\var{active}(k) \gets \var{gen}([1,\cdots,K])$\;
+  }
+  $cnt \gets 1$\;
+  \caption{Algorithm $\langle \var{initProc} \rangle_K$.}
+\end{algorithm}
+The initial process's job is to initialize all the data structures. We assume that in the beginning all variables are assigned the value $0$. If needed we can replace this by a symbolic variable depicting all possible values. The structures which record contexts are all initialized to $1$, since that is the earliest context possible. We also assign to each context a randomly chosen active process.
+\subsection{Write instructions}
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{iW}(p,x) \gets \var{gen}([1,\cdots,K])$\;
+  $\var{old-cW} \gets \var{cW}(p,x)$\;
+  $\var{cW}(p,x) \gets \var{gen}([1,\cdots,K])$\;
+  //\var{Check}\\
+  $\var{assume}(\var{active}(\var{iW}(p,x)) = p)$\;
+  $\var{assume}(\var{iW}(p,x) \geq \var{cReg}(p,exp))$\;
+  $\var{assume}(\var{cW}(p,x) \geq \var{iW}(p,x))$\;
+  $\var{assume}(\var{active}(\var{cW}(p,x)) = p)$\;
+  $\var{assume}(\var{cW}(p,x) \geq \var{max}(\var{old-cW},\var{cR}(p,x),\var{ctrl}(p))$\;
+  //\var{Update}\\
+  $\mu(x,\var{cW}(p,x)) \gets exp$\;
+  $\nu(p,x) \gets exp$\;
+  \caption{$\llbracket x \leftarrow exp\rrbracket_K^{p,\var{Write}}$}
+\end{algorithm}
+The above listing shows how write instructions are handled. First, we guess the contexts in which the write will be initialized and committed respectively. Next, we perform a set of sanity checks to ensure that the write conforms to the rule \var{InitWrite}: line 7 ensures that $p$ is the active process in that context. We then make sure that \var{InitCnd} is satisfied in line 8. Further, the write must be initialized before committed, as expressed in line 9. Finally, we must ensure that the write is committed not before any \var{poloc}-preceeding write or read, and also not before any \var{po}-previous aci instruction or before any instruction which supplies the data for this write. That is expressed in line 10. Then, we update the new values of the global values of $x$ in the respective context, and the latest local value of $x$.
+\subsection{Read Instructions}
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{cR}(p,x) \gets \var{gen}([1,\cdots,K])$\;
+  $\var{cReg}(p,\$r) \gets \var{cR}(p,x)$\;
+  //\var{Check}\\
+  $\var{assume}(\var{active}(\var{cR}(p,x)) = p)$\;
+  $\var{assume}(\var{cR}(p,x) \geq \var{iW}(p,x))$\;
+  //\var{Update}\\
+  \uIf{$\var{iR}(p,x) < \var{cW}(p,x)$}{
+    $\$r \gets \nu(p,x)$\;
+  }
+  \Else{
+    $\$r \gets \mu(x,\var{iR}(p,x))$\;
+  }
+  \caption{$\llbracket \$r \leftarrow x\rrbracket_K^{p,\var{Read}}$}
+\end{algorithm}
+As for writes, we start by guessing the context in which the read is committed. We then perform some sanity checks in the lines 5-6, which we explain next. Line 5 ensures that $p$ is the active process during the \var{commit} of the read. Line 6 ensures that the read is committed only after the closest po-before write is; this is needed due to the model. If the read is initialized before the closest \var{po}-before write (say $w$) is committed, then we must follow the rule \var{ComReadFromLocal}, as dictated by line 9. Otherwise, the global memory is at least as up-to-date, and we must use the rule \var{ComReadFromProp} to read from it. This is captured by the update of rule 11. 
+\subsection{Assign Instructions}
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{cReg}(p,\$r) \gets \var{gen}([1,\cdots,K])$\;
+  //\var{Check}\\
+  \For{$\$r' \in \mathcal{R}(exp)$}{
+    $\var{assume}(\var{cReg}(p,\$r) \geq \var{cReg}(p,\$r'))$\;
+  }
+  //\var{Update}\\
+  $\$r \gets exp$\;
+  \caption{$\llbracket \$r \leftarrow exp\rrbracket_K^{p,\var{Assign}}$}
+\end{algorithm}
+We first guess the commiting context of the assign statement. We then check that it commits no earlier than any of the events that supply it with the operand values, in line 5. The update step is simple: we just record the new value of the register $\$r$.
+\subsection{Verifying process}
+\begin{algorithm}[H]
+  \SetAlgoLined
+  \For{$p \in \mathcal{P} \wedge x \in \mathcal{X} \wedge k \in [1,\cdots,K-1]$}{
+    $\var{assume}(\mu(p,x,k) = \mu^{init}(p,x,k+1))$\;
+  }
+  \If{$l$ is reachable}{
+    $error$\;
+  }
+  \caption{$\langle \var{verProc} \rangle_K$.}
+\end{algorithm}
+The verifying process simply makes sure that the modifications to global state by a process in a context leaves it exactly in the state that the process of the next context finds it. If this is satisfied, then the execution is valid and the $error$ state is reachable if and only if a bad state can be reached in this reduced SC program.
+\section{Code-to-code translation for reduction to SC (for the complete model)}
+\subsection{Scheme for the complete model}
+Our translation scheme translates a program $Prog$ into a program $Prog^\clubsuit$ using the map function $\llbracket\cdot\rrbracket_K$. Let $\mathcal{P}$ and $\mathcal{X}$ be the set of processes and shared memory locations in our program. Then, the map $\llbracket\cdot\rrbracket_K$ replaces the memory of $Prog$ by $|\mathcal{P}|\cdot K$ copies of the set $\mathcal{X}$, along with a finite set of finite data structures defined below. Below, the function $\texttt{gen}$ takes in a finite set $S$ and returns a randomly chosen element of $S$.\\
+$$\llbracket Prog \rrbracket_K \myeq \langle \texttt{addvars} \rangle_K$$
+\vspace{-2em}
+$$\qquad\qquad\qquad\kern 13.3em\texttt{procs: }(\llbracket p \rrbracket_K)^* \kern 0.5em \langle \texttt{initProc} \rangle_K \kern 0.5em \langle \texttt{verProc} \rangle_K$$
+$$\llbracket p \rrbracket_K \myeq \;\texttt{regs: } \$r^*$$
+\vspace{-2em}
+$$\qquad\qquad\kern 2.6em\texttt{instrs: } (\llbracket i \rrbracket_K^p)^*$$
+$$\llbracket i \rrbracket_K^p \myeq l: \llbracket \texttt{s} \rrbracket_K^p $$
+$$\llbracket \$r \leftarrow exp \rrbracket_K^p \myeq \llbracket \$r \leftarrow exp \rrbracket_K^\texttt{p,Assign} $$
+\vspace{-1.2em}
+$$\llbracket \var{LD } \$r' \leftarrow [\$r] \rrbracket_K^p \myeq \llbracket \var{LD } \$r' \leftarrow [\$r] \rrbracket_K^\texttt{p,LD}$$
+\vspace{-1.2em}
+$$\llbracket \var{ST } [\$r'] \leftarrow \$r \rrbracket_K^p \myeq \llbracket \var{ST } [\$r'] \leftarrow \$r \rrbracket_K^\texttt{p,ST}$$
+\vspace{-1.2em}
+$$\llbracket \var{LDA } \$r' \leftarrow [\$r] \rrbracket_K^p \myeq \llbracket \var{LDA } \$r' \leftarrow [\$r] \rrbracket_K^\texttt{p,LDA}$$
+\vspace{-1.2em}
+$$\llbracket \var{STL } [\$r'] \leftarrow \$r \rrbracket_K^p \myeq \llbracket \var{STL } [\$r'] \leftarrow \$r \rrbracket_K^\texttt{p,STL}$$
+\vspace{-1.2em}
+$$\llbracket \var{LDX } \$r' \leftarrow [\$r] \rrbracket_K^p \myeq \llbracket \var{LDX } \$r' \leftarrow [\$r] \rrbracket_K^\texttt{p,LDX}$$
+\vspace{-1.2em}
+$$\llbracket \var{STX } \$r'', \;[\$r'] \leftarrow \$r \rrbracket_K^p \myeq \llbracket \var{STX } \$r'', \;[\$r'] \leftarrow \$r \rrbracket_K^\texttt{p,STX}$$
+\vspace{-1.2em}
+$$\llbracket \var{LDAX } \$r'', \;\$r' \leftarrow [\$r] \rrbracket_K^p \myeq \llbracket \var{LDAX } \$r' \leftarrow [\$r] \rrbracket_K^\texttt{p,LDAX}$$
+\vspace{-1.2em}
+$$\llbracket \var{STLX } [\$r'] \leftarrow \$r \rrbracket_K^p \myeq \llbracket \var{STLX } \$r'', \;[\$r'] \leftarrow \$r \rrbracket_K^\texttt{p,STLX}$$
+\vspace{-1.2em}
+$$\llbracket \texttt{if } exp \texttt{ then }i^* \texttt{ else }i^* \rrbracket_K^p \myeq \texttt{if } exp \texttt{ then } (\llbracket i  \rrbracket_K^p)^* \texttt{ else } (\llbracket i \rrbracket_K^p)^*; \kern 0.5em \langle \texttt{control} \rangle_K^p$$
+\vspace{-1.2em}
+$$\llbracket \texttt{while } exp \texttt{ do }i^* \rrbracket_K^p \myeq \texttt{while } exp \texttt{ do } (\llbracket i \rrbracket_K^p)^*; \kern 0.5em \langle \texttt{control} \rangle_K^p$$
+\vspace{-1.2em}
+$$\llbracket \texttt{assume } exp \rrbracket_K^p \myeq \texttt{assume } exp ; \kern 0.5em \langle \texttt{control} \rangle_K^p$$
+\vspace{-1.2em}
+$$\llbracket \texttt{assert } exp \rrbracket_K^p \myeq \texttt{assert } exp ; \kern 0.5em \langle \texttt{control} \rangle_K^p$$
+\vspace{-1.2em}
+$$\llbracket \texttt{acquire \$r} \leftarrow [exp] \rrbracket \myeq \llbracket \$r \leftarrow [exp] \rrbracket_K^\texttt{p,LAcq}$$
+\vspace{-1.2em}
+$$\llbracket \texttt{release [exp']} \leftarrow exp \rrbracket_K^p \myeq \llbracket [exp'] \leftarrow exp \rrbracket_K^\texttt{p,SRel}$$
+\vspace{-1.2em}
+$$\llbracket \texttt{dmb.ld} \rrbracket_K^p \myeq \llbracket \texttt{dmb.ld} \rrbracket_K^\texttt{p,DmbLd}$$
+\vspace{-1.2em}
+$$\llbracket \texttt{dmb.st} \rrbracket_K^p \myeq \llbracket \texttt{dmb.st} \rrbracket_K^\texttt{p,DmbSt}$$
+\vspace{-1.2em}
+$$\llbracket \texttt{dmb.sy} \rrbracket_K^p \myeq \llbracket \texttt{dmb.sy} \rrbracket_K^\texttt{p,DmbSy}$$
+\vspace{-1.2em}
+$$\llbracket \texttt{isb} \rrbracket_K^p \myeq \llbracket \texttt{isb} \rrbracket_K^\texttt{p,isb}$$
+\vspace{-1.2em}
+$$\llbracket\texttt{term}\rrbracket_K^p \myeq \texttt{term}$$
+\vspace{-1.2em}
+$$\langle \var{addvars} \rangle_K \myeq \mu(|\mathcal{X}|,K), \mu^{init}(|\mathcal{X}|,K), $$
+$$ \quad\var{pW}(|\mathcal{P}|,|\mathcal{X}|), \nu(|\mathcal{P}|,|\mathcal{X}|), $$
+$$ \quad\delta(|\mathcal{X}|,K), \delta^{init}(|\mathcal{X}|,K), \var{nW}(|\mathcal{X}|,K),$$
+$$ \quad\var{cR}(|\mathcal{P}|,|\mathcal{X}|), \var{cX}(|\mathcal{P}|,|\mathcal{X}|)$$
+$$ \quad\var{iW}(|\mathcal{P}|,|\mathcal{X}|), \var{cW}(|\mathcal{P}|,|\mathcal{X}|),$$
+$$ \quad\var{cReg}(|\mathcal{P}|,|\mathcal{R}|),$$
+$$ \quad\var{cL}(|\mathcal{P}|,|\mathcal{R}|),$$
+$$ \quad\var{iS}(|\mathcal{P}|,|\mathcal{X}|), \var{cS}(|\mathcal{P}|,|\mathcal{X}|),$$
+$$ \qquad\qquad\quad\var{cDY}(|\mathcal{P}|), \var{cDL}(|\mathcal{P}|),\var{cDS}(|\mathcal{P}|),\var{cISB}(|\mathcal{P}|),$$
+$$ \qquad\qquad\;\var{ctrl}(|\mathcal{P}|),\var{cAddr}(|\mathcal{P}|),\var{active}(K), cnt$$
+\vspace{-1.2em}
+$$\langle \texttt{activeCnt} \rangle_K^p \myeq \texttt{assume}(\texttt{active}(\texttt{cnt}) = p)$$
+\vspace{-1.2em}
+$$\langle \texttt{closeCnt} \rangle_K^p \myeq cnt \leftarrow cnt + \texttt{gen}([0,\cdots,K-1]);$$
+\vspace{-1.7em}
+$$ \texttt{assume}(cnt \leq K)$$
+\vspace{-1.2em}
+$$ \langle \texttt{control} \rangle_K^p \myeq \texttt{ctrl}(p) \leftarrow \texttt{ctrl}(p) + \texttt{gen}(0,\cdots,K-1);$$
+\vspace{-1.7em}
+$$ \texttt{assume}(\texttt{ctrl}(p) \leq K)$$
+\subsection{Additional data structures for the complete model}
+We use all of the data structures described in the section of the simple model, with a few minor changes. One, the set $\mathcal{X}$ now refers to the set of shared memory locations instead of shared variables. Further, functions such as \var{cR} are updated by all four types of reads, and similar conditions hold for the other three analogous functions. Since some predicates in this model are over just load-acquires or store-releases, we also define the predicates: 
+$$ \var{cL}: \mathcal{P} \times \mathcal{R} \mapsto [1,\cdots,K] $$
+$$ \var{iS}: \mathcal{P} \times \mathcal{X} \mapsto [1,\cdots,K] $$
+$$ \var{cS}: \mathcal{P} \times \mathcal{X} \mapsto [1,\cdots,K] $$
+$$ \var{cX}: \mathcal{P} \times \mathcal{X} \mapsto [1,\cdots,K] $$
+$$ \var{pW}: \mathcal{P} \times \mathcal{X} \mapsto \mathbb{N} $$
+$$ \var{nW}: \mathcal{X} \times [1,\cdots,K] \mapsto \mathbb{N} $$
+$$ \var{cDY}: \mathcal{P} \mapsto [1,\cdots,K] $$
+$$ \var{cISB}: \mathcal{P} \mapsto [1,\cdots,K] $$
+$$ \var{cDS}: \mathcal{P} \mapsto [1,\cdots,K] $$
+$$ \var{cDL}: \mathcal{P} \mapsto [1,\cdots,K] $$
+The first four describe, for each process-register or process-variable pair, the initializing and committing contexts of the latest \var{STL} or instruction that loads to, and the latest \var{SRel} instruction that stores from that register/to that variable. There is however one change that we must keep in mind: now the set $\mathcal{X}$ consists of addressable memory regions (as opposed to variables). Also note that since exclusive stores directly commit, we use their committing context to also update $\var{iW}$, since later instructions need them to be "at least" initialized, and so we need these two functions to take into account their committing (it's as if they initialized and spontaneously committed). Also, noting that the predicates on \var{LAcq} or \var{SRel} that appear in our rules, such as \var{AllLAcqs}, are not about those to a particular variable but over all of them, it will be helpful to define for $p \in \mathcal{P}$:
+$$ \var{iS}(p) = \var{max}_{x \in \mathcal{X}} \var{iS}(p,x)$$
+We similarly define $\var{cL}(p)$ and $\var{cS}(p)$. The last four are the analogues for the four types of barrier instructions respectively: \var{dmb.sy}, \var{dmb.st}, \var{dmb.ld} and \var{isb}.\\
+We shall also need to track the tags of memory locations. To this end, we introduce two new data structures, $\delta^{init} : \mathcal{X} \times [2,\cdots,K] \mapsto \mathcal{P} \cup \{\bot\}$, and $\delta : \mathcal{X} \times [1,\cdots,K] \mapsto \mathcal{P} \cup \{\bot\}$. These give the value of the tag of a memory location in a particular context: the first at the beginning of the context, and the second at any given moment in time (i.e. it gets updated as more and more transitions are taken in the corresponding context). During implementation, we can use, e.g., $0$ to represent $\bot$. Three other structures are introduced. The mapping \var{cX} gives, for each process and address, the latest committing event of a write that is in-between a load exclusive-store exclusive pair event that to that address. Then, we have \var{nW}, which for each global address maintains a counter that is incremented every time a write event is propagated to it. We track this counter separately for each context, and ensure consistency across contexts using \var{assume} statements. Further, \var{pW} records for each address the latest value of \var{nW} that was seen by a read event propagated to memory. These two structures will be used to ensure coherence for reads.
+\\With these structures defined, we now elaborate upon the components of the code-to-code translation above. Below, when we refer to a register in the pseudo-code, such as $\$r$, we are actually referring to the \textit{value} stored in the register. Thus, for example, $\var{cW}(p,[\$r])$ refers to the context of latest write-commit that writes to the location whose address is given by the then-present-value in $\$r$.\\
+Finally, we need to track, for the sake of \var{isb} and write events, the latest committing context of any instruction that supplies \var{addr}-data to a read or write: this is because when an \var{isb} is committed we need all \var{po}-preceding instructions to have well defined memory footprints. So, we define
+$$ \var{cAddr}: \mathcal{P} \mapsto [1,\cdots,K]$$
+which gives for each process $P$, the maximum initializing context of an instruction that supplies the address to another instruction seen so far.
+\subsection{The initializing process}
+\begin{algorithm}[H]
+  \SetAlgoLined
+  \For{$p \in \mathcal{P}$}{
+    \For{$x \in \mathcal{X}$}{
+        $\var{iR}(p,x) \gets 1$\;
+        $\var{cR}(p,x) \gets 1$\;
+        $\var{iW}(p,x) \gets 1$\;
+        $\var{cW}(p,x) \gets 1$\;
+        $\var{pW}(p,x) \gets 1$\;
+        $\var{iS}(p,x) \gets 1$\;
+        $\var{cS}(p,x) \gets 1$\;
+        $\var{cX}(p,x) \gets 1$\;
+        $\nu(p,x) \gets 0$\;
+    }
+    \For{$\$r \in \mathcal{R}$}{
+        $\var{cL}(p,r) \gets 1$\;
+        $\var{cReg}(p,\$r) \gets 1$\;
+    }
+    $\var{ctrl}(p) \gets 1$\;
+    $\var{cAddr}(p) \gets 1$\;
+    $\var{cDY}(p) \gets 1$\;
+    $\var{cISB}(p) \gets 1$\;
+    $\var{cDS}(p) \gets 1$\;
+    $\var{cDL}(p) \gets 1$\;
+  }
+  \For{$k \in [1,\cdots,K]$}{
+    $\var{active}(k) \gets \var{gen}(\mathcal{P})$\;
+    \eIf{$k \neq 1$}{
+        \For{$x \in \mathcal{X}$}{
+            $\mu^{init}(x,k) \gets \bot$\;
+            $\delta^{init}(x,k) \gets \bot$\;
+            $\var{nW}^{init}(x,k) \gets 1$\;
+            $\mu(x,k) \gets \mu^{init}(x,k)$\;
+            $\delta(x,k) \gets \delta^{init}(x,k)$\;
+            $\var{nW}(x,k) \gets \var{nW}^{init}(x,k)$\;
+        }
+    }{
+        \For{$x \in \mathcal{X}$}{
+            $\mu(x,k) \gets \bot$\;
+            $\delta(x,k) \gets \bot$\;
+            $\var{nW}(x,k) \gets 1$\;
+        }
+    }
+  }
+  \caption{Algorithm $\langle \var{initProc} \rangle _K$.}
+\end{algorithm}
+The algorithm is largely similar to before. We add statements that initialize the values of the new structures defined above to their respective initial values.\\
+\textcolor{red}{Implementation detail.} In case certain registers and/or memory contents are to be set to initial values, the statements for doing so are added at the end of \var{initProc} as well. Further, we can use $-1$ as a representative for $\bot$ in the implementation.
+\subsection{Write Statements}
+First we show the algorithm for \var{ST} statements.\\
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{iW}(p,[\$r']) \gets \var{gen}([1,\cdots,K])$\;
+  $\var{old-cW} \gets \var{cW}(p,[\$r'])$\;
+  $\var{cW}(p,[\$r']) \gets \var{gen}([1,\cdots,K])$\;
+  // \var{The below line is present only if in the code, this write}\\
+  // \var{is in between a LDX/LDAX-STX/STLX pair.}\\
+  $\var{cX}(p,[\$r']) \gets \var{cW}(p,[\$r'])$\;
+  //\var{Check}\\
+  $\var{assume}(\var{active}(\var{iW}(p,[\$r'])) = p)$\;
+  $\var{assume}(\var{iW}(p,[\$r']) \geq \var{max}(\var{cReg}(p,\$r'),\var{cReg}(p,\$r)))$\;
+  \For{$\$r \in \mathcal{R}$}{
+    $\var{assume}(\var{cW}(p,[\$r']) \geq \var{cL}(p,\$r))$\;
+  }
+  $\var{assume}(\var{active}(\var{cW}(p,[\$r'])) = p)$\;
+  $\var{assume}(\var{cW}(p,[\$r']) \geq \var{iW}(p,[\$r']))$\;
+  $\var{assume}(\var{cW}(p,[\$r']) \geq \var{max}(\var{cDY}(p), \var{cISB}(p)))$\;
+  $\var{assume}(\var{cW}(p,[\$r']) \geq \var{max}(\var{cDS}(p),\var{cDL}(p)))$\;
+  $\var{assume}(\var{cW}(p,[\$r']) \geq \var{max}(\var{old-cW},\var{cR}(p,[\$r'])))$\;
+  $\var{assume}(\var{cW}(p,[\$r']) \geq \var{max}(\var{cAddr}(p),\var{ctrl}(p))$\;
+  //\var{Update}\\
+  $\var{cAddr}(p) \gets \var{max}(\var{cAddr}(p), \var{cReg}(p,\$r'))$\;
+  $\mu([\$r'],\var{cW}(p,[\$r'])) \gets \$r$\;
+  $\nu(p,[\$r']) \gets \$r$\;
+  $\delta([\$r'],\var{cW}(p,[\$r'])) \gets \bot$\;
+  $\var{nW}([\$r'],\var{cW}(p,[\$r'])) \gets \var{nW}([\$r'],\var{cW}(p,[\$r'])) + 1$\;
+  \caption{$\llbracket \var{ST } [\$r'] \leftarrow \$r \rrbracket_K^{p,\var{ST}}$}
+\end{algorithm}
+We first guess the initializing and committing contexts of the \var{ST} in lines 1-3. We also update \var{cX} if the write happens to be in a load exclusive-store exclusive block. Then, we run it through a bunch of sanity checks. At lines 9 and 14 we check that the process $p$ is active during \var{init} and \var{commit}, respectively. Then we need that the two register values are ready, i.e. the events providing them have been committed, at the moment when the event is initialized: this is expressed by line 10. Line 15 posits that the instruction is committed no sooner than it is initialized, and lines 16 and 17 ensure that all \var{po}-preceeding barriers are committed. We also need all \var{po}-previous load-acquires to have been committed no later than this write is: that is checked in line 12. We then ensure the in-order commit of \var{poloc}-related instructions by comparing with \var{old-cW} and \var{cR(...)} in line 14 18. Finally, line 19 checks that 1) any \var{po}-preceding ACI instruction has been committed, and 2) all \var{po}-previous memory-access instructions have fully determined addresses ("memory footprints"). Once all the checks pass, we update the respective data structures in lines 21 through 25.\\
+We next present the other three types of writes. Since the changes are minor, we only highlight the differences in text.
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{iW}(p,[\$r']) \gets \var{gen}([1,\cdots,K])$\;
+  $\var{old-cW} \gets \var{cW}(p,[\$r'])$\;
+  $\var{cW}(p,[\$r']) \gets \var{gen}([1,\cdots,K])$\;
+  // \var{The below line is present only if in the code, this write}\\
+  // \var{is in between a LDX/LDAX-STX/STLX pair.}\\
+  $\var{cX}(p,[\$r']) \gets \var{cW}(p,[\$r'])$\;
+  $\var{iS}(p,[\$r']) \gets \var{iW}(p,[\$r'])$\;
+  $\var{cS}(p,[\$r']) \gets \var{cW}(p,[\$r'])$\;
+  //\var{Check}\\
+  $\var{assume}(\var{active}(\var{iW}(p,[\$r'])) = p)$\;
+  $\var{assume}(\var{iW}(p,[\$r']) \geq \var{max}(\var{cReg}(p,\$r),\var{cReg}(p,\$r'))$\;
+  \For{$\$x \in \mathcal{X}$}{
+    $\var{assume}(\var{cW}(p,[\$r']) \geq \var{max}(\var{cR}(p,x),\var{cW}(p,x)))$\;
+  }
+  $\var{assume}(\var{active}(\var{cW}(p,[\$r'])) = p)$\;
+  $\var{assume}(\var{cW}(p,[\$r']) \geq \var{iW}(p,[\$r']))$\;
+  $\var{assume}(\var{cW}(p,[\$r']) \geq \var{max}(\var{cDY}(p), \var{cISB}(p)))$\;
+  $\var{assume}(\var{cW}(p,[\$r']) \geq \var{max}(\var{cDS}(p),\var{cDL}(p)))$\;
+  $\var{assume}(\var{cW}(p,[\$r']) \geq \var{max}(\var{old-cW},\var{cR}(p,[\$r'])))$\;
+  $\var{assume}(\var{cW}(p,[\$r']) \geq \var{max}(\var{cAddr}(p),\var{ctrl}(p))$\;
+  //\var{Update}\\
+  $\var{cAddr}(p) \gets \var{max}(\var{cAddr}(p), \var{cReg}(p,\$r'))$\;
+  $\mu([\$r'],\var{cW}(p,[\$r'])) \gets \$r$\;
+  $\nu(p,[\$r']) \gets \$r$\;
+  $\delta([\$r'],\var{cW}(p,[\$r'])) \gets \bot$\;
+  $\var{nW}([\$r'],\var{cW}(p,[\$r'])) \gets \var{nW}([\$r'],\var{cW}(p,[\$r'])) + 1$\;
+  \caption{$\llbracket \var{STL } [\$r'] \leftarrow \$r \rrbracket_K^{p,\var{STL}}$}
+\end{algorithm}
+The difference of this from the previous listing is only that instead of just load-acquires, we need all memory-access instructions that precede this one in program order to have been committed: this change results in line 14.\\
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{old-cW} \gets \var{cW}(p,[\$r'])$\;
+  $\var{new-iW} \gets \var{gen}([1,\cdots,K])$\;
+  $\var{new-cW} \gets \var{gen}([1,\cdots,K])$\;
+  \eIf{$\delta([\$r'],\var{new-cW}) = p$}{
+    //\var{Check}\\
+    $\var{assume}(\var{active}(\var{new-iW}) = p)$\;
+    $\var{assume}(\var{new-iW} \geq \var{max}(\var{cReg}(p,\$r),\var{cReg}(p,\$r'))$\;
+    \For{$\$r \in \mathcal{R}$}{
+        $\var{new-cW} \geq \var{cL}(p,\$r))$\;
+    }
+    $\var{assume}(\var{active}(\var{new-cW}) = p)$\;
+    $\var{assume}(\var{new-cW} \geq \var{max}(\var{cDY}(p), \var{cISB}(p)))$\;
+    $\var{assume}(\var{new-cW} \geq \var{max}(\var{cDS}(p),\var{cDL}(p)))$\;
+    $\var{assume}(\var{new-cW} \geq \var{max}(\var{old-cW},\var{cR}(p,[\$r']))$\;
+    $\var{assume}(\var{new-cW} \geq \var{max}(\var{cAddr}(p),\var{ctrl}(p))$\;
+    //\var{Update}\\
+    $\var{cAddr}(p) \gets \var{max}(\var{cAddr}(p), \var{cReg}(p,\$r'))$\;
+    $\mu([\$r'],\var{new-cW}) \gets \$r$\;
+    $\nu(p,[\$r']) \gets \$r$\;
+    $\var{nW}([\$r'],\var{new-cW}) \gets \var{nW}([\$r'],\var{new-cW}) + 1$\;
+    $\delta([\$r'],\var{new-cW}) \gets \bot$\;
+    $\$r'' \gets 0$\;
+    $\var{iW}(p,[\$r']) \gets \var{cW}(p,[\$r'])$\;
+    $\var{cW}(p,[\$r']) \gets \var{new-cW}$\;
+    $\var{cX}(p,[\$r']) \gets \var{new-cW}$\;
+  }{
+    $\$r'' \gets 1$\;
+  }
+  $\var{cReg}(p,\$r'') \gets 1$\;
+  \caption{$\llbracket \var{STX } \$r'', \;[\$r'] \leftarrow \$r \rrbracket_K^{p,\var{STX}}$}
+\end{algorithm}
+This listing is still very similar to the first one: the difference is that all checks and changes (except those to $\$r''$ and \var{cAddr}) are predicated on the "success" of the store-exclusive instruction. One interesting point is that a store exclusive can fail even before it's addres is determined.\\
+The same difference applied to the second listing leads to the one below.\\
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{old-cW} \gets \var{cW}(p,[\$r'])$\;
+  $\var{new-iW} \gets \var{gen}([1,\cdots,K])$\;
+  $\var{new-cW} \gets \var{gen}([1,\cdots,K])$\;
+  \eIf{$\delta([\$r'],\var{new-cW}) = p$}{
+    //\var{Check}\\
+    $\var{assume}(\var{active}(\var{new-iW}) = p)$\;
+    $\var{assume}(\var{new-iW} \geq \var{max}(\var{cReg}(p,\$r),\var{cReg}(p,\$r'))$\;
+    \For{$\$x \in \mathcal{X}$}{
+        $\var{assume}(\var{new-cW} \geq \var{max}(\var{cR}(p,x),\var{cW}(p,x))$\;
+    }
+    $\var{assume}(\var{active}(\var{new-cW}) = p)$\;
+    $\var{assume}(\var{new-cW} \geq \var{max}(\var{cDY}(p), \var{cISB}(p)))$\;
+    $\var{assume}(\var{new-cW} \geq \var{max}(\var{cDS}(p),\var{cDL}(p)))$\;
+    $\var{assume}(\var{new-cW} \geq \var{max}(\var{old-cW},\var{cR}(p,[\$r']))$\;
+    $\var{assume}(\var{new-cW} \geq \var{max}(\var{cAddr}(p),\var{ctrl}(p))$\;
+    //\var{Update}\\
+    $\var{cAddr}(p) \gets \var{max}(\var{cAddr}(p), \var{cReg}(p,\$r'))$\;
+    $\mu([\$r'],\var{new-cW}) \gets \$r$\;
+    $\nu(p,[\$r']) \gets \$r$\;
+    $\var{nW}([\$r'],\var{new-cW}) \gets \var{nW}([\$r'],\var{new-cW}) + 1$\;
+    $\delta([\$r'],\var{new-cW}) \gets \bot$\;
+    $\$r'' \gets 0$\;
+    $\var{iW}(p,[\$r']) \gets \var{cW}(p,[\$r'])$\;
+    $\var{cW}(p,[\$r']) \gets \var{new-cW}$\;
+    $\var{cX}(p,[\$r']) \gets \var{new-cW}$\;
+  }{
+    $\$r'' \gets 1$\;
+  }
+  $\var{cReg}(p,\$r'') \gets 1$\;
+  \caption{$\llbracket \var{STLX } \$r'', \;[\$r'] \leftarrow \$r \rrbracket_K^{p,\var{STLX}}$}
+\end{algorithm}
+\textcolor{red}{Implementation detail.} For write (and read) instructions with offsets, we reserve a private register. We first \var{assign} the sum of the base and offset to this private register followed by one of the above listings, in order to replicate the effect of a write-to-offset style instruction. This preserves correctness since, for an assign instruction, the only condition is that it is not initialized(committed) before any of its operands are initialized(committed): hence, every execution trace valid without this hack still remains so.
+\subsection{Assign Instructions}
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{cReg}(p,\$r) \gets \var{gen}([1,\cdots,K])$\;
+  //\var{Check}\\
+  \For{$\$r' \in \mathcal{R}(exp)$}{
+    $\var{assume}(\var{cReg}(p,\$r) \geq \var{cReg}(p,\$r'))$\;
+  }
+  //\var{Update}\\
+  $\$r \gets exp$\;
+  \caption{$\llbracket \$r \leftarrow exp\rrbracket_K^{p,\var{Assign}}$}
+\end{algorithm}
+Assign instructions are simple: the only condition we have on them is that they cannot \var{commit} before every one of their operands (which are part of $exp$) have done so, as expressed in line 5.
+\subsection{Read Instructions}
+We show, in order, the listings for \var{LD}, \var{LDA}, \var{LDX} and \var{LDAX} respectively.\\
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{old-cR} \gets \var{cR}(p,[\$r])$\;
+  $\var{cR}(p,[\$r]) \gets \var{gen}([1,\cdots,K])$\;
+  //\var{cReg assigned later since may be needed during check}\\
+  //\var{Check}\\
+  $\var{assume}(\var{active}(\var{cR}(p,[\$r])) = p)$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{iW}(p,[\$r]))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cReg}(p,\$r))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{max}(\var{cDY}(p), \var{cISB}(p))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cDL}(p))$\;
+  \For{$\$r'' \in \mathcal{R}$}{
+    $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cL}(p,\$r''))$\;
+  }
+  //\var{Update}\\
+  $\var{cReg}(p,\$r') \gets \var{cR}(p,[\$r])$\;
+  $\var{cAddr}(p) \gets \var{max}(\var{cAddr}(p), \var{cReg}(p,\$r))$\;
+  \uIf{$\var{cR}(p,[\$r]) < \var{cW}(p,[\$r])$}{
+    $\$r' \gets \nu(p,[\$r])$\;
+  }
+  \Else{
+    \uIf{$\var{pW}(p,[\$r]) \neq \var{nW}([\$r],\var{cR}(p,[\$r]))$}{
+        $\var{assume}(\var{cR}(p,[\$r]) \geq \var{old-cR})$\;
+    }
+    $\$r' \gets \mu([\$r],\var{cR}(p,[\$r]))$\;
+    $\var{pW}(p,[\$r]) \gets \var{nW}([\$r],\var{cR}(p,[\$r]))$\;
+  }
+  \caption{$\llbracket \var{LD } \$r' \leftarrow [\$r]\rrbracket_K^{p,\var{LD}}$}
+\end{algorithm}
+The conditions for read instructions, apart from the obvious one about process $p$ being active during commmit, are: 1) we need all \var{dmb.sy}'s, \var{isb}'s and \var{dmb.ld}'s that precede this instruction in program order, to have been committed before it is committed, as lines 9-10 describe. We also need all events supplying the address to have been committed before it, as in line 8. We also require that all \var{poloc}-previous writes have initialized, as in line 7. Once the sanity checks are done, we update the required data structures to indicate that the \var{LD} instruction has committed. If the load reads from memory, and reads from a different event than the last one that did, we also require it to obey the coherence ordering as in line 21. As noted before, we also have that register writes due to exclusive stores do not impose orderings on future instructions reading the success value, unlike loads. Thus, we set the \var{cReg} value to 1, so that any future check will pass (unless it is subsequently overwritten by another event).\\
+We next present the listings for the other three types of reads. The modifications as compared to the above listing are minor and obvious, so we do not elaborate upon them.\\
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{cR}(p,[\$r]) \gets \var{gen}([1,\cdots,K])$\;
+  //\var{cReg,cL assigned later since may be needed during check}\\
+  //\var{Check}\\
+  $\var{assume}(\var{active}(\var{cR}(p,[\$r])) = p)$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{iW}(p,[\$r]))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cReg}(p,\$r))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{max}(\var{cDY}(p), \var{cISB}(p))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cDL}(p))$\;
+  \For{$\$r'' \in \mathcal{R}$}{
+    $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cL}(p,\$r''))$\;
+  }
+  \For{$x \in \mathcal{X}$}{
+    $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cS}(p,x))$\;
+  }
+  //\var{Update}\\
+  $\var{cReg}(p,\$r') \gets \var{cR}(p,[\$r])$\;
+  $\var{cL}(p,\$r') \gets \var{cR}(p,[\$r])$\;
+  $\var{cAddr}(p) \gets \var{max}(\var{cAddr}(p), \var{cReg}(p,\$r))$\;
+  \uIf{$\var{cR}(p,[\$r]) < \var{cW}(p,[\$r])$}{
+    $\$r' \gets \nu(p,[\$r])$\;
+  }
+  \Else{
+    \uIf{$\var{pW}(p,[\$r]) \neq \var{nW}([\$r],\var{cR}(p,[\$r]))$}{
+        $\var{assume}(\var{cR}(p,[\$r]) \geq \var{old-cR})$\;
+    }
+    $\$r' \gets \mu([\$r],\var{cR}(p,[\$r]))$\;
+    $\var{pW}(p,[\$r]) \gets \var{nW}([\$r],\var{cR}(p,[\$r]))$\;
+  }
+  \caption{$\llbracket \var{LDA } \$r' \leftarrow [\$r]\rrbracket_K^{p,\var{LDA}}$}
+\end{algorithm}
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{cR}(p,[\$r]) \gets \var{gen}([1,\cdots,K])$\;
+  //\var{cReg assigned later since may be needed during check}\\
+  //\var{Check}\\
+  $\var{assume}(\var{active}(\var{cR}(p,[\$r])) = p)$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{iW}(p,[\$r]))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cReg}(p,\$r))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{max}(\var{cDY}(p), \var{cISB}(p))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cDL}(p))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cX}(p,[\$r]))$\;
+  \For{$\$r'' \in \mathcal{R}$}{
+    $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cL}(p,\$r''))$\;
+  }
+  //\var{Update}\\
+  $\var{cReg}(p,\$r') \gets \var{cR}(p,[\$r])$\;
+  $\var{cAddr}(p) \gets \var{max}(\var{cAddr}(p), \var{cReg}(p,\$r))$\;
+  \uIf{$\var{cR}(p,[\$r]) < \var{cW}(p,[\$r])$}{
+    $\$r' \gets \nu(p,[\$r])$\;
+    $\delta([\$r],\var{cW}(p,[\$r])) \gets p$\;
+  }
+  \Else{
+    \uIf{$\var{pW}(p,[\$r]) \neq \var{nW}([\$r],\var{cR}(p,[\$r]))$}{
+        $\var{assume}(\var{cR}(p,[\$r]) \geq \var{old-cR})$\;
+    }
+    $\$r' \gets \mu([\$r],\var{cR}(p,[\$r]))$\;
+    $\var{pW}(p,[\$r]) \gets \var{nW}([\$r],\var{cR}(p,[\$r]))$\;
+    $\delta([\$r],\var{cR}(p,[\$r])) \gets p$\;
+  }
+  \caption{$\llbracket \var{LDX } \$r' \leftarrow [\$r]\rrbracket_K^{p,\var{LDX}}$}
+\end{algorithm}
+\pagebreak
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{cR}(p,[\$r]) \gets \var{gen}([1,\cdots,K])$\;
+  //\var{cReg,cL assigned later since may be needed during check}\\
+  //\var{Check}\\
+  $\var{assume}(\var{active}(\var{cR}(p,[\$r])) = p)$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{iW}(p,[\$r]))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cReg}(p,\$r))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{max}(\var{cDY}(p), \var{cISB}(p))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cDL}(p))$\;
+  $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cX}(p,[\$r]))$\;
+  \For{$\$r'' \in \mathcal{R}$}{
+    $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cL}(p,\$r''))$\;
+  }
+  \For{$x \in \mathcal{X}$}{
+    $\var{assume}(\var{cR}(p,[\$r]) \geq \var{cS}(p,x))$\;
+  }
+  //\var{Update}\\
+  $\var{cReg}(p,\$r') \gets \var{cR}(p,[\$r])$\;
+  $\var{cL}(p,\$r') \gets \var{cR}(p,[\$r])$\;
+  $\var{cAddr}(p) \gets \var{max}(\var{cAddr}(p), \var{cReg}(p,\$r))$\;
+  \uIf{$\var{cR}(p,[\$r]) < \var{cW}(p,[\$r])$}{
+    $\$r' \gets \nu(p,[\$r])$\;
+    $\delta([\$r],\var{cW}(p,[\$r])) \gets p$\;
+  }
+  \Else{
+    \uIf{$\var{pW}(p,[\$r]) \neq \var{nW}([\$r],\var{cR}(p,[\$r]))$}{
+        $\var{assume}(\var{cR}(p,[\$r]) \geq \var{old-cR})$\;
+    }
+    $\$r' \gets \mu([\$r],\var{cR}(p,[\$r]))$\;
+    $\var{pW}(p,[\$r]) \gets \var{nW}([\$r],\var{cR}(p,[\$r]))$\;
+    $\delta([\$r],\var{cR}(p,[\$r])) \gets p$\;
+  }
+  \caption{$\llbracket \var{LDAX } \$r' \leftarrow [\$r]\rrbracket_K^{p,\var{LDAX}}$}
+\end{algorithm}
+\textcolor{red}{Implementation detail.} The procedure for offset-ed reads is the same as that for offset-ed writes: see the corresponding subsection for details.
+\subsection{Barrier Instructions}
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{old-cDY} \gets \var{cDY}(p)$\;
+  $\var{cDY}(p) \gets \var{gen}[1,\cdots,K]$\;
+  //\var{Check}\\
+  $\var{assume}(\var{cDY}(p) \geq \var{max}(\var{old-cDY},\var{cISB}(p)))$\;
+  $\var{assume}(\var{cDY}(p) \geq \var{max}(\var{cDL}(p),\var{cDS}(p)))$\;
+  $\var{assume}(\var{cDY}(p) \geq \var{ctrl}(p))$\;
+  \For{$x \in \mathcal{X}$}{
+    $\var{assume}(\var{cDY}(p) \geq \var{cW}(p,x))$\;
+    $\var{assume}(\var{cDY}(p) \geq \var{cR}(p,x))$\;
+  }
+  \caption{$\llbracket \var{dmb.sy} \rrbracket_K^{p,\var{DmbSy}}$}
+\end{algorithm}
+We first guess the context in which the \var{dmb.sy} will be committed, and then run it through some sanity checks. The \var{AllBarriers} predicate is spread across lines 5 and 6. The \var{AllMem} predicate appears in lines 9-10. Line 7 ensures that all \var{po}-previous ACI instructions have been committed.\\
+Next up is the ISB instruction:\\
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{cISB}(p) \gets \var{gen}[1,\cdots,K]$\;
+  //\var{Check}\\
+  $\var{assume}(\var{cISB}(p) \geq \var{max}(\var{cDY}(p),\var{ctrl}(p)))$\;
+  $\var{assume}(\var{cISB}(p) \geq \var{cAddr}(p))$\;
+  \caption{$\llbracket \var{isb} \rrbracket_K^{p,\var{Isb}}$}
+\end{algorithm}
+For an ISB instruction, at the time of commit we need that all \var{po}-preceding \var{dmb.sy} and ACI instructions are committed; and also that all \var{po}-preceding memory access instructions have fully defined addresses: these conditions are a part of lines 4,4 and 5 respectively.\\
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{cDL}(p) \gets \var{gen}[1,\cdots,K]$\;
+  //\var{Check}\\
+  $\var{assume}(\var{cDL}(p) \geq \var{cDY}(p))$\;
+  \For{$x \in \mathcal{X}$}{
+    $\var{assume}(\var{cDY}(p) \geq \var{cR}(p,x))$\;
+  }
+  \caption{$\llbracket \var{dmb.ld} \rrbracket_K^{p,\var{DmbLd}}$}
+\end{algorithm}
+Again, for a \var{dmb.ld} we first guess the committing context for it, in line 2. Then, we run it through the \var{AllDmbSys} and \var{AllReads} predicates. The first is in line 4, and the second is in line 6.\\
+\begin{algorithm}[H]
+  \SetAlgoLined
+  //\var{Guess}\\
+  $\var{cDS}(p) \gets \var{gen}[1,\cdots,K]$\;
+  //\var{Check}\\
+  $\var{assume}(\var{cDS}(p) \geq \var{cDY}(p))$\;
+ \For{$x \in \mathcal{X}$}{
+    $\var{assume}(\var{cDY}(p) \geq \var{cW}(p,x))$\;
+  }
+  \caption{$\llbracket \var{dmb.st} \rrbracket_K^{p,\var{DmbSt}}$}
+\end{algorithm}
+\subsection{ACI statements}
+As shown in the translation schemes, the ACI statements themselves are retained as \var{if-then-else} C-statements. However, apart from the $\langle\var{control}\rangle$, we also need the condition that $\var{control}(p)$ is greater than or equal to the \textcolor{red}{committing} context of the register it depends on (not committing). Thus, for example, if we have a \var{CBNZ} instruction:
+$$ \var{CBNZ \$r, label}$$
+Then we need that after modification, $\var{ctrl}(p) \geq \var{cReg}(p,\$r)$.\\
+\textcolor{red}{Implementation detail.} For instructions such as \var{BEQ} which follow a \var{CMP}, we do the following: during the \var{CMP} we simply assign the two operand-registers to two fixed private registers of the process, and consider \var{BEQ} and other such instructions as ACI instructions that use these fixed private registers.
+\subsection{Verifying process}
+\begin{algorithm}[H]
+  \SetAlgoLined
+  \For{$x \in \mathcal{X} \wedge k \in [1,\cdots,K-1]$}{
+    $\var{assume}(\mu(x,k) = \mu^{init}(x,k+1))$\;
+    $\var{assume}(\delta(x,k) = \delta^{init}(x,k+1))$\;
+    $\var{assume}(\var{nW}(x,k) = \var{nW}^{init}(x,k+1))$\;
+  }
+  \If{$l$ is reachable}{
+    $error$\;
+  }
+  \caption{$\langle \var{verProc} \rangle_K$.}
+\end{algorithm}
+The verifying process is the same as in section 10: it simply ensures that each context leaves the global state in a consistent state for the next one.\\
+\textcolor{red}{Implementation detail.} The checking for the final conditions (for which we are to determine reachability) are the contents of line 5.
+\medskip
+
+\bibliographystyle{unsrt}
+\bibliography{refs}
+\end{document}

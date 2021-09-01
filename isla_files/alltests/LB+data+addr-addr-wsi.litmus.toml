@@ -1,0 +1,36 @@
+arch = "AArch64"
+name = "LB+data+addr-addr-wsi"
+hash = "eba6abec03c2f2781a68476d346f0229"
+cycle = "Rfe DpAddrdR DpAddrdW Wsi Rfe DpDatadW"
+relax = ""
+safe = "Rfe Wsi DpAddrdW DpAddrdR DpDatadW"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Rf"
+orig = "DpDatadW Rfe DpAddrdR DpAddrdW Wsi Rfe"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	ADD W2,W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X7 = "x", X4 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	LDR W3,[X4,W2,SXTW]
+	EOR W5,W3,W3
+	MOV W6,#1
+	STR W6,[X7,W5,SXTW]
+	MOV W8,#2
+	STR W8,[X7]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 1 & 0:X0 = 2 & 1:X0 = 1"

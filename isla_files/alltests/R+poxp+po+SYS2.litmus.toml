@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "R+poxp+po+SYS2"
+hash = "94285551aa11a52f16bf210e98ac4184"
+cycle = "Wse PodWR FrePX PodWWXP"
+relax = "FrePX"
+safe = "Wse PodWW PodWR"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Ws Fr"
+orig = "PodWWXP Wse PodWR FrePX"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X5 = "y", X0 = "x" }
+code = """
+	MOV W1,#1
+	LDXR W2,[X0]
+	STXR W3,W1,[X0]
+	MOV W4,#1
+	STR W4,[X5]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & *y = 2 & 0:X3 = 0 & 0:X2 = 0 & 1:X2 = 0"

@@ -1,0 +1,33 @@
+arch = "AArch64"
+name = "2+2W+dmb.ld+popl"
+hash = "de56b83df992a0c279dad5a6946683e1"
+cycle = "Wse PodWWPL WseLP DMB.LDdWW"
+relax = ""
+safe = "Wse PodWW DMB.LDdWW WseLP"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Ws Ws"
+orig = "DMB.LDdWW Wse PodWWPL WseLP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	DMB LD
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 2"

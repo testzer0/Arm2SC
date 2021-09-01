@@ -1,3 +1,0 @@
-RV+3.LB+fence.rw.rw+ctrlfencei+pos.litmus : unsatisfiable
-RV+3.LB+fence.r.rw+fence.rw.rw+ctrl.litmus : unsatisfiable
-RV+MP+fence.rw.rw+fri-rfi-ctrl.litmus : satisfiable

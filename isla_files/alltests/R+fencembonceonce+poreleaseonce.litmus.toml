@@ -1,0 +1,33 @@
+arch = "AArch64"
+name = "R+fencembonceonce+poreleaseonce"
+mapping = "1:X1=r0"
+hash = "58ba8b3712ab4f94f3b62ac3a2784c54"
+cycle = "FreOnceOnce FenceMbdWWOnceOnce WseOnceRelease PodWRReleaseOnce"
+relax = "WseOnceRelease"
+safe = "FreOnceOnce FenceMbdWWOnceOnce PodWRReleaseOnce"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Ws Fr"
+orig = "FenceMbdWWOnceOnce WseOnceRelease PodWRReleaseOnce FreOnceOnce"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X0 = "y", X2 = "x" }
+code = """
+	MOV W3,#2
+	STLR W3,[X0]
+	LDR W1,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "*y = 2 & 1:X1 = 0"

@@ -1,0 +1,44 @@
+arch = "AArch64"
+name = "MP+dmb.sy+datapx-poxx-rfixp-addr"
+hash = "fbae797f9ff0d5ea57d12dc507914270"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+symbolic = ["a", "ok", "x", "y", "z"]
+
+[locations]
+"ok" = "1"
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X14 = "ok", X12 = "x", X6 = "a", X2 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	LDXR W4,[X2]
+	STXR W5,W0,[X2]
+	CBNZ W5,Fail1
+	MOV W7,#1
+	LDXR W8,[X6]
+	STXR W5,W7,[X6]
+	CBNZ W5,Fail1
+	LDR W9,[X6]
+	EOR W10,W9,W9
+	LDR W11,[X12,W10,SXTW]
+	B Exit1
+Fail1:
+	MOV W13,#0
+	STR W13,[X14]
+Exit1:
+"""
+
+[final]
+expect = "sat"
+assertion = "*ok = 1 & *a = 1 & *z = 1 & 1:X0 = 1 & 1:X8 = 0 & 1:X9 = 1 & 1:X11 = 0"

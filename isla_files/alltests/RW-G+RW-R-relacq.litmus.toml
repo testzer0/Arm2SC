@@ -1,0 +1,34 @@
+arch = "AArch64"
+name = "auto/RW-G+RW-R-Auxiliary"
+mapping = "0:X3=r60101,0:X0=r1,1:X2=r1,1:X0=r50101"
+hash = "4d75d263518346740d76ee5a85078f48"
+symbolic = ["csend01", "gpstart01", "x0", "x1"]
+
+[thread.0]
+init = { X1 = "x0", X2 = "gpstart01", X4 = "csend01", X5 = "x1" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W6,#1
+	STLR W6,[X2]
+	DMB SY
+	LDAR W3,[X4]
+	DMB SY
+	MOV W6,#1
+	STR W6,[X5]
+"""
+
+[thread.1]
+init = { X1 = "gpstart01", X3 = "x1", X4 = "x0", X5 = "csend01" }
+code = """
+	LDAR W0,[X1]
+	LDR W2,[X3]
+	MOV W6,#1
+	STR W6,[X4]
+	MOV W6,#1
+	STLR W6,[X5]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X2 = 1 & (1:X0 = 1 | 0:X3 = 1)"

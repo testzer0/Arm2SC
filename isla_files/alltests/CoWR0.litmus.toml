@@ -1,0 +1,22 @@
+arch = "AArch64"
+name = "CoWR0"
+hash = "1a415c90f6519b69702edc2de46c93f8"
+cycle = "Fre PosWR"
+relax = ""
+safe = "Fre PosWR"
+prefetch = ""
+com = "Fr"
+orig = "PosWR Fre"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	LDR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~(0:X2 = 1 & *x = 1)"

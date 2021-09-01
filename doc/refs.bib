@@ -1,0 +1,77 @@
+@InProceedings{dec,
+author="Atig, Mohamed Faouzi
+and Bouajjani, Ahmed
+and Burckhardt, Sebastian
+and Musuvathi, Madanlal",
+editor="Seidl, Helmut",
+title="What's Decidable about Weak Memory Models?",
+booktitle="Programming Languages and Systems",
+year="2012",
+publisher="Springer Berlin Heidelberg",
+address="Berlin, Heidelberg",
+pages="26--46",
+abstract="We investigate the decidability of the state reachability problem in finite-state programs running under weak memory models. In [3], we have shown that this problem is decidable for TSO and its extension with the write-to-write order relaxation, but beyond these models nothing is known to be decidable. Moreover, we have shown that relaxing the program order by allowing reads or writes to overtake reads leads to undecidability. In this paper, we refine these results by sharpening the (un)decidability frontiers on both sides. On the positive side, we introduce a new memory model NSW (for non-speculative writes) that extends TSO with the write-to-write relaxation, the read-to-read relaxation, and support for partial fences. We present a backtrack-free operational model for NSW, and prove that it does not allow causal cycles (thus barring pathological out-of-thin-air effects). On the negative side, we show that adding the read-to-write relaxation to TSO causes undecidability, and that adding non-atomic writes to NSW also causes undecidability. Our results establish that NSW is the first known hardware-centric memory model that is relaxed enough to permit both delayed execution of writes and early execution of reads for which the reachability problem is decidable.",
+isbn="978-3-642-28869-2"
+}
+@InProceedings{lalreps,
+author="Lal, Akash
+and Reps, Thomas",
+editor="Gupta, Aarti
+and Malik, Sharad",
+title="Reducing Concurrent Analysis Under a Context Bound to Sequential Analysis ",
+booktitle="Computer Aided Verification",
+year="2008",
+publisher="Springer Berlin Heidelberg",
+address="Berlin, Heidelberg",
+pages="37--51",
+abstract="This paper addresses the analysis of concurrent programs with shared memory. Such an analysis is undecidable in the presence of multiple procedures. One approach used in recent work obtains decidability by providing only a partial guarantee of correctness: the approach bounds the number of context switches allowed in the concurrent program, and aims to prove safety, or find bugs, under the given bound. In this paper, we show how to obtain simple and efficient algorithms for the analysis of concurrent programs with a context bound. We give a general reduction from a concurrent program P, and a given context bound K, to a sequential program {\$}P{\_}s^K{\$}such that the analysis of {\$}P{\_}s^K{\$}can be used to prove properties about P. We give instances of the reduction for common program models used in model checking, such as Boolean programs and pushdown systems.",
+isbn="978-3-540-70545-1"
+}
+@misc{power,
+      title={Context-Bounded Model Checking for POWER}, 
+      author={Parosh Aziz Abdulla and Mohamed Faouzi Atig and Ahmed Bouajjani and Tuan Phong Ngo},
+      year={2019},
+      eprint={1702.01655},
+      archivePrefix={arXiv},
+      primaryClass={cs.PL}
+}
+@misc{herd,
+      title={Herding Cats - Modelling, simulation, testing, and data-mining for weak memory}, 
+      author={Jade Alglave and Luc Maranget and Michael Tautschnig},
+      year={2014},
+      eprint={1308.6810},
+      archivePrefix={arXiv},
+      primaryClass={cs.LO}
+}
+@article{flat,
+author = {Pulte, Christopher and Flur, Shaked and Deacon, Will and French, Jon and Sarkar, Susmit and Sewell, Peter},
+title = {Simplifying ARM Concurrency: Multicopy-Atomic Axiomatic and Operational Models for ARMv8},
+year = {2017},
+issue_date = {January 2018},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {2},
+number = {POPL},
+url = {https://doi.org/10.1145/3158107},
+doi = {10.1145/3158107},
+abstract = {ARM has a relaxed memory model, previously specified in informal prose for ARMv7 and ARMv8. Over time, and partly due to work building formal semantics for ARM concurrency, it has become clear that some of the complexity of the model is not justified by the potential benefits. In particular, the model was originally non-multicopy-atomic: writes could become visible to some other threads before becoming visible to all — but this has not been exploited in production implementations, the corresponding potential hardware optimisations are thought to have insufficient benefits in the ARM context, and it gives rise to subtle complications when combined with other ARMv8 features. The ARMv8 architecture has therefore been revised: it now has a multicopy-atomic model. It has also been simplified in other respects, including more straightforward notions of dependency, and the architecture now includes a formal concurrency model. In this paper we detail these changes and discuss their motivation. We define two formal concurrency models: an operational one, simplifying the Flowing model of Flur et al., and the axiomatic model of the revised ARMv8 specification. The models were developed by an academic group and by ARM staff, respectively, and this extended collaboration partly motivated the above changes. We prove the equivalence of the two models. The operational model is integrated into an executable exploration tool with new web interface, demonstrated by exhaustively checking the possible behaviours of a loop-unrolled version of a Linux kernel lock implementation, a previously known bug due to unprevented speculation, and a fixed version.},
+journal = {Proc. ACM Program. Lang.},
+month = dec,
+articleno = {19},
+numpages = {29},
+keywords = {Semantics, Operational, Axiomatic, Relaxed Memory Models}
+}
+@misc{diy7,
+  author = {INRIA},
+  title = {{The diy tool}},
+  howpublished = {\url{http://diy.inria.fr/}},
+  year = {2015}, 
+  note = "[Online]"
+}
+@misc{catfile,
+  author = {INRIA},
+  title = {{The .cat file for the AArch64 (ARMv8) memory model}},
+  howpublished = {\url{http://diy.inria.fr/www/weblib/aarch64-v06.cat.html}},
+  year = {2020}, 
+  note = "[Online]"
+}

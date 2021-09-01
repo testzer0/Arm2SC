@@ -1,0 +1,29 @@
+arch = "AArch64"
+name = "LB+addr+addrpx-poxp+VAR"
+hash = "64b4b0bc9c03a207fc71e34a7ac328c2"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X4 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	MOV W3,#1
+	STR W3,[X4,W2,SXTW]
+"""
+
+[thread.1]
+init = { X9 = "x", X3 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	MOV W5,#1
+	ADD X4,X3,W2,SXTW
+	STXR W7,W5,[X4]
+	MOV W8,#1
+	STR W8,[X9]
+"""
+
+[final]
+expect = "sat"
+assertion = "*z = 0 & 0:X0 = 1 & 1:X0 = 1 & 1:X7 = 1"

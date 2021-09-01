@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "ISA2+o-rel+lderef-o+o-rb-o"
+mapping = "1:X0=r1,2:X2=r2,2:X0=r3"
+hash = "11beda333c5f89c79edfa718b5994f4b"
+symbolic = ["a", "c", "x"]
+
+[locations]
+"a" = "1"
+"x" = "2"
+
+[thread.0]
+init = { X0 = "a", X1 = "x" }
+code = """
+	MOV W2,#3
+	STR W2,[X0]
+	MOV W2,#4
+	STLR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x", X2 = "c" }
+code = """
+	LDR W0,[X1]
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.2]
+init = { X1 = "c", X3 = "a" }
+code = """
+	LDR W0,[X1]
+	DMB LD
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 4 & 2:X0 = 1 & 2:X2 = 1"

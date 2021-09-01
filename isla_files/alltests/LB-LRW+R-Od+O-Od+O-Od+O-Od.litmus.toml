@@ -1,0 +1,51 @@
+arch = "AArch64"
+name = "LB-LRW+R-Od+O-Od+O-Od+O-Od"
+mapping = "0:X2=r3,0:X0=r1,1:X2=r3,1:X0=r1,2:X2=r3,2:X0=r1,3:X2=r3,3:X0=r1,4:X0=r1"
+hash = "410101c39ff794984e7df3d31dafa66f"
+symbolic = ["u0", "x1", "x2", "x3", "x4", "y1", "y2", "y3", "y4"]
+
+[locations]
+"x1" = "y1"
+"x2" = "y2"
+"x3" = "y3"
+"x4" = "y4"
+
+[thread.0]
+init = { X2 = "x2", X1 = "u0", X3 = "x1" }
+code = """
+	LDR W0,[X1]
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X2 = "x3", X1 = "x1" }
+code = """
+	LDR W0,[X1]
+	STR W2,[X0]
+"""
+
+[thread.2]
+init = { X2 = "x4", X1 = "x2" }
+code = """
+	LDR W0,[X1]
+	STR W2,[X0]
+"""
+
+[thread.3]
+init = { X2 = "u0", X1 = "x3" }
+code = """
+	LDR W0,[X1]
+	STR W2,[X0]
+"""
+
+[thread.4]
+init = { X1 = "x4" }
+code = """
+	LDR W0,[X1]
+	MOV W2,#1
+	STR W2,[X0]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = x2 & 2:X0 = x3 & 3:X0 = x4 & 4:X0 = u0"

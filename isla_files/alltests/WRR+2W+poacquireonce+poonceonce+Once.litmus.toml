@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "WRR+2W+poacquireonce+poonceonce+Once"
+mapping = "1:X2=r1,1:X0=r0,"
+hash = "069b7fc47eed7402c8f3494e9a1fc45d"
+cycle = "PodRRAcquireOnce FreOnceOnce PodWWOnceOnce WseOnceOnce RfeOnceAcquire"
+relax = "RfeOnceAcquire"
+safe = "PodRRAcquireOnce FreOnceOnce WseOnceOnce PodWWOnceOnce"
+prefetch = "1:x=F,1:y=T,2:y=F,2:x=W"
+com = "Rf Fr Ws"
+orig = "RfeOnceAcquire PodRRAcquireOnce FreOnceOnce PodWWOnceOnce WseOnceOnce"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X0 = "x" }
+code = """
+	MOV W1,#2
+	STR W1,[X0]
+"""
+
+[thread.1]
+init = { X1 = "x", X3 = "y" }
+code = """
+	LDAR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[thread.2]
+init = { X0 = "y", X1 = "x" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 2 & 1:X2 = 0"

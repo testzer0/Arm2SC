@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "S+po+poap"
+hash = "23b66031d710476a01bd6750daff02ee"
+cycle = "RfePA PodRWAP Wse PodWW"
+relax = ""
+safe = "Wse PodWW PodRW RfePA"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Ws"
+orig = "PodWW RfePA PodRWAP Wse"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 1"

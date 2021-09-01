@@ -1,0 +1,41 @@
+arch = "AArch64"
+name = "ARMARM04"
+hash = "b73b7933dec29eb522d196ec1fbe02b3"
+prefetch = "1:x=F,1:y=W,2:y=F,2:x=T"
+com = "Rf Rf Fr"
+orig = "RfeLA PodRWAP Rfe DpAddrdRPA FreAL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDAR W0,[X1]
+	CMP W0,#1
+	B.NE Exit1
+	MOV W2,#1
+	STR W2,[X3]
+Exit1:
+"""
+
+[thread.2]
+init = { X3 = "-1", X4 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#1
+	B.NE Exit2
+	EOR W2,W0,W0
+	ADD X5,X4,W2,SXTW
+	LDAR W3,[X5]
+Exit2:
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 2:X3 = 0"

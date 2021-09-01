@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "WWC+pos+dmb.sys"
+hash = "f3bc7a7b3428a9e8031b6855d3ced5cb"
+cycle = "Rfe PosRW Rfe DMB.SYsRW Wse"
+relax = ""
+safe = "Rfe Wse PosRW DMB.SYsRW"
+prefetch = ""
+com = "Rf Rf Ws"
+orig = "Rfe PosRW Rfe DMB.SYsRW Wse"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[thread.2]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W2,#3
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~((1:X0 = 0 & ((2:X0 = 0 & (*x = 1 | *x = 2 | *x = 3)) | (2:X0 = 1 & (*x = 3 | *x = 2)) | (2:X0 = 2 & (*x = 1 | *x = 3)))) | (1:X0 = 1 & ((*x = 3 & (2:X0 = 2 | 2:X0 = 1 | 2:X0 = 0)) | (*x = 2 & (2:X0 = 0 | 2:X0 = 1)))) | (1:X0 = 3 & ((2:X0 = 0 & (*x = 1 | *x = 2)) | (2:X0 = 1 & *x = 2))))"

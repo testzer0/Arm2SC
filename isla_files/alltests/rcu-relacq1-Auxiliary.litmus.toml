@@ -1,0 +1,35 @@
+arch = "AArch64"
+name = "rcu-relacq1-Auxiliary"
+mapping = "1:X0=r0,2:X2=r1,2:X0=r0"
+hash = "de5e4caaf3914515d7ff52cf6276a44a"
+symbolic = ["csend01", "x", "y"]
+
+[thread.0]
+init = { X0 = "x" }
+code = """
+	MOV W1,#1
+	STR W1,[X0]
+"""
+
+[thread.1]
+init = { X1 = "x", X2 = "csend01", X3 = "y" }
+code = """
+	LDR W0,[X1]
+	MOV W4,#1
+	STLR W4,[X2]
+	DMB ST
+	MOV W4,#1
+	STR W4,[X3]
+"""
+
+[thread.2]
+init = { X1 = "y", X3 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB LD
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 2:X2 = 0"

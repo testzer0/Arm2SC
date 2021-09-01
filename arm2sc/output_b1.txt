@@ -1538,7 +1538,6 @@ Z6.5+pooncerelease+poreleaserelease+poonceonce.litmus : satisfiable
 Z6.5+poreleaserelease+poreleaserelease+poonceacquire.litmus : satisfiable
 ISA2+dmb.ld+addr+dmb.sy.litmus : satisfiable
 MP+dmb.sy+ctrl-[fr-rf]-ctrl-fri-rfi.litmus : unsatisfiable
-C-Will01.litmus : unsatisfiable
 S+dmb.ldll+dmb.st.litmus : satisfiable
 R+rfi-ctrlpl+polp-ctrlisbpa.litmus : unsatisfiable
 Z6.5+poonceonce+poonceonce+poreleaseacquire.litmus : satisfiable
@@ -2198,3 +2197,4 @@ MP+dmb.sy+pos-ctrl-wsi-rfi-ctrl.litmus : satisfiable
 3.LB+poacquireonce+poonceonce+pooncerelease.litmus : satisfiable
 Z6.3+dmb.ld+dmb.ld+ctrlisb.litmus : satisfiable
 WRC.litmus : satisfiable
+MP+dmb.sy+[fr-rf]-ctrl-addr-rfi.litmus : unsatisfiable

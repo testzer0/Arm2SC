@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "SB+dmb.stpa+popa"
+hash = "cef00e5eecc831b396152f999641f941"
+cycle = "FreAP PodWRPA FreAP DMB.STdWRPA"
+relax = ""
+safe = "PodWR DMB.STdWR FreAP"
+prefetch = "0:x=F,0:y=T,1:y=F,1:x=T"
+com = "Fr Fr"
+orig = "DMB.STdWRPA FreAP PodWRPA FreAP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB ST
+	LDAR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X2 = 0 & 1:X2 = 0"

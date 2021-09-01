@@ -1,0 +1,26 @@
+arch = "AArch64"
+name = "SC-DEP-DATA"
+hash = "c4563d30489dade35324720474f842af"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X5 = "y", X0 = "x" }
+code = """
+	MOV W1,#1
+	LDXR W2,[X0]
+	STXR W3,W1,[X0]
+	ORR W4,W2,#1
+	STR W4,[X5]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	DMB LD
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & 1:X0 = 1 & 1:X2 = 0"

@@ -1,0 +1,30 @@
+arch = "AArch64"
+name = "CSEL-NEG"
+hash = "a53d54b5023917f180a95e0e4cc98d06"
+symbolic = ["a", "w", "x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X13 = "w", X10 = "0", X9 = "x", X6 = "a", X4 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	AND W2,W0,#128
+	LDR W3,[X4,W2,SXTW]
+	LDR W12,[X13]
+	CMP W12,#0
+	CSEL W7,W10,W3,EQ
+	LDR W8,[X9,W7,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X8 = 0"

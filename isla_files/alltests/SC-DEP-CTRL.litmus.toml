@@ -1,0 +1,28 @@
+arch = "AArch64"
+name = "SC-DEP-CTRL"
+hash = "39b11b40963d49a9e008ccc74af5f8d9"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X5 = "y", X0 = "x" }
+code = """
+	MOV W1,#1
+	LDXR W2,[X0]
+	STXR W3,W1,[X0]
+	CBNZ W3,Fail0
+	MOV W4,#1
+	STR W4,[X5]
+Fail0:
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	DMB LD
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & 1:X0 = 1 & 1:X2 = 0"

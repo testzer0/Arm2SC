@@ -1,0 +1,27 @@
+arch = "AArch64"
+name = "ARMv8-csel-addr-write"
+hash = "5a5cc9e82a47190c059b3926c75230f2"
+symbolic = ["u", "x", "y"]
+
+[thread.0]
+init = { X2 = "0", X9 = "u", X8 = "y", X7 = "x" }
+code = """
+	LDR W1,[X7]
+	CMP W1,#0
+	CSEL X2,X8,X9,NE
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.1]
+init = { X8 = "y", X7 = "x" }
+code = """
+	LDR W3,[X8]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X7]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X1 = 1 & 1:X3 = 1"

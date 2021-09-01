@@ -1,0 +1,47 @@
+arch = "AArch64"
+name = "ISA2+poxp+addr+addr"
+hash = "46e7f4d3bae7b0310b70e93cdab2c684"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=W,2:z=F,2:x=T"
+com = "Rf Rf Fr"
+orig = "PodWWXP Rfe DpAddrdW Rfe DpAddrdR FrePX"
+symbolic = ["ok", "x", "y", "z"]
+
+[locations]
+"ok" = "1"
+
+[thread.0]
+init = { X7 = "ok", X5 = "y", X0 = "x" }
+code = """
+	MOV W1,#1
+	LDXR W2,[X0]
+	STXR W3,W1,[X0]
+	CBNZ W3,Fail0
+	MOV W4,#1
+	STR W4,[X5]
+	B Exit0
+Fail0:
+	MOV W6,#0
+	STR W6,[X7]
+Exit0:
+"""
+
+[thread.1]
+init = { X4 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	MOV W3,#1
+	STR W3,[X4,W2,SXTW]
+"""
+
+[thread.2]
+init = { X4 = "x", X1 = "z" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	LDR W3,[X4,W2,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "*ok = 1 & *x = 1 & 0:X2 = 0 & 1:X0 = 1 & 2:X0 = 1 & 2:X3 = 0"

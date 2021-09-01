@@ -1,0 +1,18 @@
+arch = "AArch64"
+name = "auto/RW-B"
+mapping = "0:X0=r1"
+hash = "0cd14dff29a7d16a6356ed0c11620ad2"
+symbolic = ["x0"]
+
+[thread.0]
+init = { X1 = "x0" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1"

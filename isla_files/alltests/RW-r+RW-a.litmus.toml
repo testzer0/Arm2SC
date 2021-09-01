@@ -1,0 +1,25 @@
+arch = "AArch64"
+name = "auto/RW-r+RW-a"
+mapping = "0:X0=r1,1:X0=r1"
+hash = "359f9f30115b1bc1bb8f1a910b9284f0"
+symbolic = ["x0", "x1"]
+
+[thread.0]
+init = { X1 = "x0", X2 = "x1" }
+code = """
+	LDR W0,[X1]
+	MOV W3,#1
+	STLR W3,[X2]
+"""
+
+[thread.1]
+init = { X1 = "x1", X2 = "x0" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = 1"

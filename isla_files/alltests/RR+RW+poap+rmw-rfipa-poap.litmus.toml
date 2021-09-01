@@ -1,0 +1,29 @@
+arch = "AArch64"
+name = "RR+RW+poap+rmw-rfipa-poap"
+hash = "836db39a6661860a706170bf330ff813"
+prefetch = "0:x=F,0:y=T,1:y=F,1:x=W"
+com = "Fr Rf"
+orig = "PodRRAP Hat Rmw RfiPA PodRWAP RfePA"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDAR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[thread.1]
+init = { X6 = "x", X0 = "y" }
+code = """
+	MOV W2,#1
+	LDXR W1,[X0]
+	STXR W3,W2,[X0]
+	LDAR W4,[X0]
+	MOV W5,#1
+	STR W5,[X6]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 0:X2 = 0 & 1:X3 = 0 & 1:X1 = 0 & 1:X4 = 1"

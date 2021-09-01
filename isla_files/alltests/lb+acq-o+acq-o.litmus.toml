@@ -1,0 +1,29 @@
+arch = "AArch64"
+name = "LB+acq-o+acq-o"
+mapping = "0:X0=r1,1:X0=r3"
+hash = "73eef37daac1955fb47681123dbf515a"
+symbolic = ["x", "y"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+
+[thread.0]
+init = { X1 = "x", X2 = "y" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.1]
+init = { X1 = "y", X2 = "x" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = 1"

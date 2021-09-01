@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "WRR+2W+pos+dmb.sys"
+hash = "110d4b854bea391c6aea2e73bc6a12ee"
+cycle = "Rfe PosRR Fre DMB.SYsWW Wse"
+relax = ""
+safe = "Rfe Fre Wse PosRR DMB.SYsWW"
+prefetch = ""
+com = "Rf Fr Ws"
+orig = "Rfe PosRR Fre DMB.SYsWW Wse"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	LDR W2,[X1]
+"""
+
+[thread.2]
+init = { X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#3
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~((*x = 3 & ((1:X0 = 0 & (1:X2 = 0 | 1:X2 = 1 | 1:X2 = 2 | 1:X2 = 3)) | (1:X0 = 1 & (1:X2 = 3 | 1:X2 = 2 | 1:X2 = 1)) | (1:X0 = 2 & (1:X2 = 1 | 1:X2 = 2 | 1:X2 = 3)) | (1:X0 = 3 & 1:X2 = 3))) | (*x = 1 & ((1:X0 = 0 & (1:X2 = 3 | 1:X2 = 2 | 1:X2 = 1 | 1:X2 = 0)) | (1:X0 = 2 & (1:X2 = 1 | 1:X2 = 2 | 1:X2 = 3)) | (1:X0 = 3 & (1:X2 = 3 | 1:X2 = 1)) | (1:X0 = 1 & 1:X2 = 1))))"

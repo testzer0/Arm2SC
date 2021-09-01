@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "MP+rfixp-data+poap"
+hash = "d6c6054014d3a179880773961c35390f"
+generator = "diyone7 (version 7.47+2)"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "RfiXP DpDatadW RfePA PodRRAP FrePX"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X6 = "y", X0 = "x" }
+code = """
+	MOV W1,#1
+	LDXR W2,[X0]
+	STXR W3,W1,[X0]
+	LDR W4,[X0]
+	EOR W5,W4,W4
+	ADD W5,W5,#1
+	STR W5,[X6]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & 0:X3 = 0 & 0:X2 = 0 & 0:X4 = 1 & 1:X0 = 1 & 1:X2 = 0"

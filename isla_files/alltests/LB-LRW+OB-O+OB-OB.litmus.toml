@@ -1,0 +1,36 @@
+arch = "AArch64"
+name = "auto/LB-LRW+OB-O+OB-OB"
+mapping = "0:X0=r1,1:X0=r1,2:X0=r1"
+hash = "f446c8573d7e7758603ef985cb3938e6"
+symbolic = ["u0", "x1", "x2"]
+
+[thread.0]
+init = { X1 = "u0", X2 = "x1" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.1]
+init = { X1 = "x1", X2 = "x2" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.2]
+init = { X1 = "x2", X2 = "u0" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = 1 & 2:X0 = 1"

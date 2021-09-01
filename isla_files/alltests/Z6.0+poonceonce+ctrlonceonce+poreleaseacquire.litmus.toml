@@ -1,0 +1,43 @@
+arch = "AArch64"
+name = "Z6.0+poonceonce+ctrlonceonce+poreleaseacquire"
+mapping = "1:X2=r1,1:X0=r0,2:X1=r0"
+hash = "d2947423416b0b4e4aaecbd6d56bb053"
+cycle = "FreAcquireOnce PodWWOnceOnce RfeOnceOnce DpCtrldWOnceOnce WseOnceRelease PodWRReleaseAcquire"
+relax = "FreAcquireOnce WseOnceRelease"
+safe = "RfeOnceOnce PodWWOnceOnce DpCtrldWOnceOnce PodWRReleaseAcquire"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=W,2:z=F,2:x=T"
+com = "Rf Ws Fr"
+orig = "PodWWOnceOnce RfeOnceOnce DpCtrldWOnceOnce WseOnceRelease PodWRReleaseAcquire FreAcquireOnce"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X3 = "z" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#0
+	B.EQ label50
+label50:
+	MOV W4,#1
+	STR W4,[X3]
+"""
+
+[thread.2]
+init = { X0 = "z", X2 = "x" }
+code = """
+	MOV W3,#2
+	STLR W3,[X0]
+	LDAR W1,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "*z = 2 & 1:X0 = 1 & 2:X1 = 0"

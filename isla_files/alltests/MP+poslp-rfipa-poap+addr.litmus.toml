@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "MP+poslp-rfipa-poap+addr"
+hash = "9097858f93e35f6c97e88db2a0ea1885"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "PosWWLP RfiPA PodRWAP Rfe DpAddrdR FrePL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X5 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	MOV W2,#2
+	STR W2,[X1]
+	LDAR W3,[X1]
+	MOV W4,#1
+	STR W4,[X5]
+"""
+
+[thread.1]
+init = { X4 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	LDR W3,[X4,W2,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 0:X3 = 2 & 1:X0 = 1 & 1:X3 = 0"

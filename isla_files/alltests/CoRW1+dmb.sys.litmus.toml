@@ -1,0 +1,23 @@
+arch = "AArch64"
+name = "CoRW1+dmb.sys"
+hash = "04124f866145322a7020fd387579d7c6"
+cycle = "Rfe DMB.SYsRW"
+relax = ""
+safe = "Rfe DMB.SYsRW"
+prefetch = ""
+com = "Rf"
+orig = "DMB.SYsRW Rfe"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~(0:X0 = 0 & *x = 1)"

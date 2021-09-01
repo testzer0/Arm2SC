@@ -1,0 +1,44 @@
+arch = "AArch64"
+name = "ARM-super-detour1"
+hash = "ba5c27807da62999f830013aab19002f"
+symbolic = ["a", "u", "v", "w", "x", "y"]
+
+[locations]
+"v" = "a"
+"w" = "a"
+"y" = "a"
+
+[thread.0]
+init = { X3 = "y", X1 = "v" }
+code = """
+	LDR X0,[X1]
+	LDR W2,[X0]
+	LDR X4,[X3]
+	LDR W6,[X4]
+"""
+
+[thread.1]
+init = { X3 = "y", X2 = "u", X1 = "x", X0 = "1" }
+code = """
+	STR W0,[X1]
+	STLR X2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "w", X2 = "x", X1 = "u", X0 = "1" }
+code = """
+	STR W0,[X1]
+	DMB ST
+	STR X2,[X3]
+"""
+
+[thread.3]
+init = { X3 = "v", X1 = "w" }
+code = """
+	LDR X0,[X1]
+	STR X0,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = x & 0:X2 = 0 & 0:X4 = u & 0:X6 = 0 & 3:X0 = x"

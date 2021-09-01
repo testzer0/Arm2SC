@@ -10,15 +10,8 @@ from enum import Enum
 # making use of context bounding. 			#
 #############################################
 
-if len(sys.argv) == 1:
-	infile = os.path.join(os.getcwd(), 'tests/2+2W.litmus')
-	outfile = os.path.join(os.getcwd(), 'arm2sc/translated.c')
-elif len(sys.argv) == 3:
-	infile = os.path.join(os.getcwd(), 'tests/'+sys.argv[1])
-	outfile = os.path.join(os.getcwd(), 'arm2sc/'+sys.argv[2])
-else:
-	infile = os.path.join(os.getcwd(), sys.argv[1]+'/'+sys.argv[2])
-	outfile = os.path.join(os.getcwd(), 'arm2sc/'+sys.argv[3])
+infile = os.path.join(os.getcwd(), sys.argv[1]+'/'+sys.argv[2])
+outfile = os.path.join(os.getcwd(), 'arm2sc/'+sys.argv[3])
 
 class InstrType(Enum):
 	LD = 1

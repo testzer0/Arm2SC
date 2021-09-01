@@ -1,0 +1,30 @@
+arch = "AArch64"
+name = "SB+poss"
+hash = "6ecce1bd0fc09b508662f8e928d2693c"
+cycle = "Fre PosWR Fre PosWR"
+relax = ""
+safe = "Fre PosWR"
+prefetch = ""
+com = "Fr Fr"
+orig = "PosWR Fre PosWR Fre"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	LDR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	LDR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~((0:X2 = 1 & ((1:X2 = 2 & (*x = 1 | *x = 2)) | (1:X2 = 1 & *x = 1))) | (0:X2 = 2 & 1:X2 = 2 & *x = 2))"

@@ -1,0 +1,34 @@
+arch = "AArch64"
+name = "TC1"
+mapping = "0:X2=r3,0:X0=r1,1:X0=r2"
+hash = "fb6ea056a3081da53b1ca37f92af8179"
+symbolic = ["x", "y"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+
+[thread.0]
+init = { X1 = "x", X3 = "y" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#0
+	B.EQ label15
+	CMP W0,#1
+	B.NE label16
+label15:
+	MOV W4,#1
+	STR W4,[X3]
+label16:
+"""
+
+[thread.1]
+init = { X1 = "y", X2 = "x" }
+code = """
+	LDR W0,[X1]
+	STR W0,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = 1"

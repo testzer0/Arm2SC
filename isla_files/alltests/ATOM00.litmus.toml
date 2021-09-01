@@ -1,0 +1,35 @@
+arch = "AArch64"
+name = "ATOM00"
+hash = "224bf752e4c4eb5c31d4d66af751f5c7"
+prefetch = ""
+com = "Ws Ws"
+orig = "WsePX WseXP"
+symbolic = ["ok", "x"]
+
+[locations]
+"ok" = "1"
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X5 = "ok", X0 = "x" }
+code = """
+	MOV W1,#2
+	LDXR W2,[X0]
+	STXR W3,W1,[X0]
+	CBNZ W3,Fail1
+	B Exit1
+Fail1:
+	MOV W4,#0
+	STR W4,[X5]
+Exit1:
+"""
+
+[final]
+expect = "unsat"
+assertion = "*ok = 1 & *x = 2 & 1:X2 = 0"

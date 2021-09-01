@@ -1,0 +1,39 @@
+arch = "AArch64"
+name = "MP+o-o-mb-o-o+o-o-rb-o-o"
+mapping = "1:X6=r4,1:X4=r3,1:X2=r2,1:X0=r1"
+hash = "a5dcd402084346cf10ae48e37fb008e4"
+symbolic = ["a", "c", "d", "x"]
+
+[locations]
+"a" = "0"
+"c" = "0"
+"d" = "0"
+"x" = "0"
+
+[thread.0]
+init = { X0 = "a", X1 = "x", X2 = "c", X3 = "d" }
+code = """
+	MOV W4,#1
+	STR W4,[X0]
+	MOV W4,#2
+	STR W4,[X1]
+	DMB SY
+	MOV W4,#3
+	STR W4,[X2]
+	MOV W4,#4
+	STR W4,[X3]
+"""
+
+[thread.1]
+init = { X1 = "c", X3 = "d", X5 = "a", X7 = "x" }
+code = """
+	LDR W0,[X1]
+	LDR W2,[X3]
+	DMB LD
+	LDR W4,[X5]
+	LDR W6,[X7]
+"""
+
+[final]
+expect = "sat"
+assertion = "(1:X0 = 3 & 1:X4 = 0) | (1:X0 = 3 & 1:X6 = 0) | (1:X2 = 4 & 1:X4 = 0) | (1:X2 = 4 & 1:X6 = 0)"

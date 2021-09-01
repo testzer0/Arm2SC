@@ -1,0 +1,27 @@
+arch = "AArch64"
+name = "TC4"
+mapping = "0:X0=r1,1:X0=r2"
+hash = "a40f0c2cd78e0f76c844798ea2a85730"
+symbolic = ["x", "y"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+
+[thread.0]
+init = { X1 = "x", X2 = "y" }
+code = """
+	LDR W0,[X1]
+	STR W0,[X2]
+"""
+
+[thread.1]
+init = { X1 = "y", X2 = "x" }
+code = """
+	LDR W0,[X1]
+	STR W0,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "~0:X0 = 0 | ~1:X0 = 0"

@@ -1,0 +1,47 @@
+arch = "AArch64"
+name = "MP+dmb.sy+[fr-rf]-ctrl-rfi-ctrlisb"
+hash = "c05ec2be43c341b5f6ad30c7d048494a"
+cycle = "Rfi DpCtrlIsbdR Fre DMB.SYdWW Rfe FrLeave RfBack DpCtrldW"
+relax = ""
+safe = "Rfi Rfe Fre DMB.SYdWW DpCtrldW DpCtrlIsbdR [FrLeave,RfBack]"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr Rf"
+orig = "DMB.SYdWW Rfe FrLeave RfBack DpCtrldW Rfi DpCtrlIsbdR Fre"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X7 = "x", X4 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	LDR W2,[X1]
+	CBNZ W2,LC00
+LC00:
+	MOV W3,#1
+	STR W3,[X4]
+	LDR W5,[X4]
+	CBNZ W5,LC01
+LC01:
+	ISB
+	LDR W6,[X7]
+"""
+
+[thread.2]
+init = { X1 = "y" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & *y = 2 & *z = 1 & 1:X0 = 1 & 1:X2 = 2 & 1:X5 = 1 & 1:X6 = 0"

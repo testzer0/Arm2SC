@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "ISA2+rfila-poap+addr+addr"
+hash = "58c1fc41c35996ba1f221903fe184a3c"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=W,2:z=F,2:x=T"
+com = "Rf Rf Fr"
+orig = "RfiLA PodRWAP Rfe DpAddrdW Rfe DpAddrdR FrePL"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X4 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	LDAR W2,[X1]
+	MOV W3,#1
+	STR W3,[X4]
+"""
+
+[thread.1]
+init = { X4 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	MOV W3,#1
+	STR W3,[X4,W2,SXTW]
+"""
+
+[thread.2]
+init = { X4 = "x", X1 = "z" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	LDR W3,[X4,W2,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X2 = 1 & 1:X0 = 1 & 2:X0 = 1 & 2:X3 = 0"

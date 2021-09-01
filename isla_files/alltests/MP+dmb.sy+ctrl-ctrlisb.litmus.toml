@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "MP+dmb.sy+ctrl-ctrlisb"
+hash = "5483e7e77caa8aeaab95910109958494"
+cycle = "Rfe DpCtrldR DpCtrlIsbdR Fre DMB.SYdWW"
+relax = ""
+safe = "Rfe Fre DMB.SYdWW DpCtrldR DpCtrlIsbdR"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "DMB.SYdWW Rfe DpCtrldR DpCtrlIsbdR Fre"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X5 = "x", X3 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	CBNZ W0,LC00
+LC00:
+	LDR W2,[X3]
+	CBNZ W2,LC01
+LC01:
+	ISB
+	LDR W4,[X5]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & *y = 1 & 1:X0 = 1 & 1:X4 = 0"

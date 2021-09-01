@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "ARMv8-ctrl-addr-write"
+hash = "34269a18d675af287a79184a6eaf2020"
+symbolic = ["u", "x", "y"]
+
+[thread.0]
+init = { X9 = "u", X8 = "y", X7 = "x" }
+code = """
+	LDR W1,[X7]
+	CBNZ W1,Lelse
+	ADD X2,X9,#0
+	B Lexit
+Lelse:
+	ADD X2,X8,#0
+Lexit:
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.1]
+init = { X8 = "y", X7 = "x" }
+code = """
+	LDR W3,[X8]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X7]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X1 = 1 & 1:X3 = 1"

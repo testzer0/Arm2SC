@@ -1,0 +1,33 @@
+arch = "AArch64"
+name = "2+2W+dmb.stlp+polp"
+hash = "e6184725c8f4d690cb65f26bd5914eb1"
+cycle = "WsePL PodWWLP WsePL DMB.STdWWLP"
+relax = ""
+safe = "PodWW DMB.STdWW WsePL"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Ws Ws"
+orig = "DMB.STdWWLP WsePL PodWWLP WsePL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 2"

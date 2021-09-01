@@ -1,0 +1,35 @@
+arch = "AArch64"
+name = "LB+o-branch-o+o-branch-o"
+mapping = "0:X2=r3,0:X0=r1,1:X2=r4,1:X0=r2"
+hash = "fa12972be788905c5639069030a20a7b"
+symbolic = ["x", "y"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+
+[thread.0]
+init = { X1 = "x", X3 = "y" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#0
+	B.EQ label11
+	MOV W4,#1
+	STR W4,[X3]
+label11:
+"""
+
+[thread.1]
+init = { X1 = "y", X3 = "x" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#0
+	B.EQ label12
+	MOV W4,#1
+	STR W4,[X3]
+label12:
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = 1"

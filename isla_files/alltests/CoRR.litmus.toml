@@ -1,0 +1,28 @@
+arch = "AArch64"
+name = "CoRR"
+hash = "97b593208d6bb441a0ab863c899b4999"
+cycle = "Rfe PosRR Fre"
+relax = ""
+safe = "Rfe Fre PosRR"
+prefetch = ""
+com = "Rf Fr"
+orig = "Rfe PosRR Fre"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	LDR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~(*x = 1 & ((1:X0 = 0 & (1:X2 = 0 | 1:X2 = 1)) | (1:X0 = 1 & 1:X2 = 1)))"

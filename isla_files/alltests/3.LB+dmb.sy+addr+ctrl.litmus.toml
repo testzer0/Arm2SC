@@ -1,0 +1,42 @@
+arch = "AArch64"
+name = "3.LB+dmb.sy+addr+ctrl"
+hash = "fb7fe6eea9788e9cedec47e569371539"
+cycle = "Rfe DMB.SYdRW Rfe DpAddrdW Rfe DpCtrldW"
+relax = ""
+safe = "Rfe DMB.SYdRW DpAddrdW DpCtrldW"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=W,2:z=F,2:x=W"
+com = "Rf Rf Rf"
+orig = "DMB.SYdRW Rfe DpAddrdW Rfe DpCtrldW Rfe"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X4 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	MOV W3,#1
+	STR W3,[X4,W2,SXTW]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "z" }
+code = """
+	LDR W0,[X1]
+	CBNZ W0,LC00
+LC00:
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = 1 & 2:X0 = 1"

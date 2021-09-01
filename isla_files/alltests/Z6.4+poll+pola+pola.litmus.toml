@@ -1,0 +1,39 @@
+arch = "AArch64"
+name = "Z6.4+poll+pola+pola"
+hash = "32d4060e44e6da77a8cf1bc47db6d907"
+cycle = "FreAL PodWRLA FreAL PodWWLL WseLL PodWRLA"
+relax = ""
+safe = "PodWW PodWR FreAL WseLL"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=T,2:z=F,2:x=T"
+com = "Ws Fr Fr"
+orig = "PodWWLL WseLL PodWRLA FreAL PodWRLA FreAL"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "z", X1 = "y" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	LDAR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "z" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*y = 2 & 1:X2 = 0 & 2:X2 = 0"

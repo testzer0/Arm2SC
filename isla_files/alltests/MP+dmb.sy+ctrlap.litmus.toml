@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "MP+dmb.sy+ctrlap"
+hash = "524432ade2e51c3f02be87b27a1e8826"
+generator = "diyone7 (version 7.55+01(dev))"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "DMB.SYdWW RfePA DpCtrldRAP Fre"
+symbolic = ["x", "y"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+
+[types]
+"x" = "uint64_t"
+"y" = "uint64_t"
+
+[thread.0]
+init = { X2 = "y", X1 = "x", X0 = "1" }
+code = """
+	STR X0,[X1]
+	DMB SY
+	STR X0,[X2]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y", X0 = "0", X2 = "0" }
+code = """
+	LDAR X0,[X1]
+	CBNZ X0,LC00
+LC00:
+	LDR X2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X2 = 0"

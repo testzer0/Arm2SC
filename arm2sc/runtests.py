@@ -1,20 +1,15 @@
 import os
 import subprocess
 import sys
+from timeit import default_timer as timer
 from termcolor import colored
 
-if len(sys.argv) == 1:
-	infile = os.path.join(os.getcwd(), 'expected_results/expected.txt')
-	outfile = os.path.join(os.getcwd(), 'arm2sc/output.txt')
-elif sys.argv[1] == "-k":
+if sys.argv[1] == "-k":
 	infile = os.path.join(os.getcwd(), 'expected_results/expected_others.txt')
 	outfile = os.path.join(os.getcwd(), 'arm2sc/output_other.txt')
-elif sys.argv[1] == "-o":
+elif sys.argv[1] == "-a":
 	infile = os.path.join(os.getcwd(), 'expected_results/expected_all.txt')
 	outfile = os.path.join(os.getcwd(), 'arm2sc/output_all.txt')
-elif sys.argv[1] == "-a":
-	infile = os.path.join(os.getcwd(), 'expected_results/expected_all_new.txt')
-	outfile = os.path.join(os.getcwd(), 'arm2sc/output_all_new.txt')
 elif sys.argv[1] == "-b1":
 	infile = os.path.join(os.getcwd(), 'expected_results/expected_b1.txt')
 	outfile = os.path.join(os.getcwd(), 'arm2sc/output_b1.txt')
@@ -40,6 +35,9 @@ with open(infile) as f:
 
 fail = False
 
+total_time = 0
+num_tests = len(tests)
+
 count = 1
 for test in tests:
 	if fail:
@@ -53,10 +51,13 @@ for test in tests:
 				cbmc arm2sc/translated.c 2>/dev/null"
 	else:
 		cmd = f"python3 arm2sc/translate.py {test} translated.c && cbmc arm2sc/translated.c 2>/dev/null"
+	then = timer()
 	try:
 		output = subprocess.check_output(cmd, shell=True).decode("utf-8")
 	except Exception as e:
 		output = str(e.output)
+	now = timer()
+	t = now - then
 	try:
 		word = output.split('\n')[-1].split()[-1][:-3]
 	except Exception as e:
@@ -76,8 +77,14 @@ for test in tests:
 	else:
 		three = colored('FAIL', 'red')
 		fail = True
-	print(f"{count} {test} : EXPECTED {one} GOT {two}.....{three}")
+	print(f"{count} {test} : EXPECTED {one} GOT {two}.....{three} in {t} seconds")
+	total_time += t
 	count += 1
+
+print("")
+print(f"Total time taken: {total_time} seconds")
+total_time /= num_tests
+print(f"Averaged over {num_tests} tests, {total_time} seconds")
 
 with open(outfile, 'w+') as f:
 	for test, result in resultdict.items():

@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "R+wsipl+rfilp-ctrl-addrpa"
+hash = "4a603785cba6d9281b406fa41f9b4efc"
+cycle = "DpCtrldR DpAddrdRPA FreAP WsiPL WseLL RfiLP"
+relax = "FreAP WseLL"
+safe = "Rfi Wsi DpAddrdR DpCtrldR"
+prefetch = ""
+com = "Ws Fr"
+orig = "WsiPL WseLL RfiLP DpCtrldR DpAddrdRPA FreAP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	MOV W2,#2
+	STLR W2,[X1]
+	LDR W3,[X1]
+"""
+
+[thread.1]
+init = { X4 = "y", X1 = "x" }
+code = """
+	MOV W0,#3
+	STLR W0,[X1]
+	LDR W2,[X1]
+	CBNZ W2,LC00
+LC00:
+	LDR W3,[X4]
+	EOR W5,W3,W3
+	ADD X7,X1,W5,SXTW
+	LDAR W6,[X7]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 3 & 0:X3 = 3 & 1:X2 = 3 & 1:X6 = 0"

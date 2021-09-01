@@ -1,0 +1,29 @@
+arch = "AArch64"
+name = "CoRW2"
+hash = "944b8e06cc4c057a94db0f97651e82e2"
+cycle = "Rfe PosRW Wse"
+relax = ""
+safe = "Rfe Wse PosRW"
+prefetch = ""
+com = "Rf Ws"
+orig = "Rfe PosRW Wse"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~((1:X0 = 0 & (*x = 2 | *x = 1)) | (1:X0 = 1 & *x = 2))"

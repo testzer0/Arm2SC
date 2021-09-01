@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "MP+po+dmb.stap"
+hash = "960786b1bf3c2913b3f1666b133d5462"
+cycle = "RfePA DMB.STdRRAP Fre PodWW"
+relax = ""
+safe = "Fre PodWW DMB.STdRR RfePA"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "PodWW RfePA DMB.STdRRAP Fre"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	DMB ST
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X2 = 0"

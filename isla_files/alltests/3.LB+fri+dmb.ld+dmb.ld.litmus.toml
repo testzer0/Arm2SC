@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "3.LB+fri+dmb.ld+dmb.ld"
+hash = "ef1b2d3fd3a1b80fbdf3f08143a1fc30"
+prefetch = "1:x=F,1:y=W,2:y=F,2:x=W"
+com = "Rf Rf Rf"
+orig = "Fri Rfe DMB.LDdRW Rfe DMB.LDdRW Rfe"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB LD
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	DMB LD
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 0:X0 = 1 & 1:X0 = 2 & 2:X0 = 1"

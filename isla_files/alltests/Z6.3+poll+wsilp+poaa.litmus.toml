@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "Z6.3+poll+wsilp+poaa"
+hash = "206ad26aaa1df946c0d34e7e1b60763c"
+cycle = "RfePA PodRRAA FreAL PodWWLL WseLL WsiLP"
+prefetch = "0:x=F,0:y=W,2:y=F,2:x=T"
+com = "Ws Rf Fr"
+orig = "PodWWLL WseLL WsiLP RfePA PodRRAA FreAL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+	LDR W4,[X3]
+"""
+
+[thread.1]
+init = { X1 = "y" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	MOV W2,#3
+	STR W2,[X1]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X4 = 2 & 2:X0 = 3 & 2:X2 = 0"

@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "MP+poll+addraa"
+hash = "dbd92585abcf24e2711b2fd8737386ff"
+cycle = "RfeLA DpAddrdRAA FreAL PodWWLL"
+relax = ""
+safe = "PodWW DpAddrdR FreAL RfeLA"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "PodWWLL RfeLA DpAddrdRAA FreAL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X4 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	EOR W2,W0,W0
+	ADD X5,X4,W2,SXTW
+	LDAR W3,[X5]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X3 = 0"

@@ -1,0 +1,35 @@
+arch = "AArch64"
+name = "WRC+po-rel+rmb"
+mapping = "1:X0=r0,2:X2=r1,2:X0=r0"
+hash = "7a23bb600e67840c76465273cef90be8"
+prefetch = "1:x=F,1:y=W,2:y=F,2:x=T"
+com = "Rf Rf Fr"
+orig = "RfeOnceOnce PodRWOnceRelease RfeReleaseOnce FenceRmbdRROnceOnce FreOnceOnce"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X0 = "x" }
+code = """
+	MOV W1,#1
+	STR W1,[X0]
+"""
+
+[thread.1]
+init = { X1 = "x", X2 = "y" }
+code = """
+	LDR W0,[X1]
+	MOV W3,#1
+	STLR W3,[X2]
+"""
+
+[thread.2]
+init = { X1 = "y", X3 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB LD
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 2:X2 = 0"

@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "MP+dmb.syll+addrap"
+hash = "26c7ec54515b93b4595973dae6e39942"
+cycle = "RfeLA DpAddrdRAP FrePL DMB.SYdWWLL"
+relax = ""
+safe = "DMB.SYdWW DpAddrdR FrePL RfeLA"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "DMB.SYdWWLL RfeLA DpAddrdRAP FrePL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X4 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	EOR W2,W0,W0
+	LDR W3,[X4,W2,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X3 = 0"

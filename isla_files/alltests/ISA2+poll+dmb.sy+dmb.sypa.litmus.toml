@@ -1,0 +1,40 @@
+arch = "AArch64"
+name = "ISA2+poll+dmb.sy+dmb.sypa"
+hash = "31effef6ab63442aae14d2c4084cf5f5"
+cycle = "Rfe DMB.SYdRRPA FreAL PodWWLL RfeLP DMB.SYdRW"
+relax = "DMB.SYdRRPA PodWWLL"
+safe = "Rfe Fre DMB.SYdRW"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=W,2:z=F,2:x=T"
+com = "Rf Rf Fr"
+orig = "PodWWLL RfeLP DMB.SYdRW Rfe DMB.SYdRRPA FreAL"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "z" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 2:X2 = 0"

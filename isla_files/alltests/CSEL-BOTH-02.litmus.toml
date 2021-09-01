@@ -1,0 +1,36 @@
+arch = "AArch64"
+name = "CSEL-BOTH-02"
+hash = "eb5b37a947b2ac2048396c509439a303"
+symbolic = ["a", "w", "x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X13 = "w", X11 = "0", X9 = "x", X6 = "a", X4 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	AND W2,W0,#128
+	LDR W12,[X13]
+	CMP W12,#0
+	CSEL W7,W11,W2,NE
+	LDR W8,[X9,W7,SXTW]
+"""
+
+[thread.2]
+init = { X1 = "w" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X8 = 0"

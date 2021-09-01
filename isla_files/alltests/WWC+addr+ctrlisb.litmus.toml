@@ -1,0 +1,41 @@
+arch = "AArch64"
+name = "WWC+addr+ctrlisb"
+hash = "aead8ff7ce5b83131d64f2801c39f7d5"
+cycle = "Rfe DpAddrdW Rfe DpCtrlIsbdW Wse"
+relax = ""
+safe = "Rfe Wse DpAddrdW DpCtrlIsbdW"
+prefetch = "1:x=F,1:y=W,2:y=F,2:x=W"
+com = "Rf Rf Ws"
+orig = "Rfe DpAddrdW Rfe DpCtrlIsbdW Wse"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X4 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	MOV W3,#1
+	STR W3,[X4,W2,SXTW]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	CBNZ W0,LC00
+LC00:
+	ISB
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 2 & 2:X0 = 1"

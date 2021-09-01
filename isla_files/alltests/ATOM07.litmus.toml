@@ -1,0 +1,16 @@
+arch = "AArch64"
+name = "ATOM07"
+hash = "38954d2728dabcc66d6071467c3134aa"
+symbolic = ["x"]
+
+[thread.0]
+init = { X4 = "2", X2 = "1", X0 = "x" }
+code = """
+	LDXR W1,[X0]
+	STR W2,[X0]
+	STXR W3,W4,[X0]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 0:X1 = 0 & 0:X3 = 0"

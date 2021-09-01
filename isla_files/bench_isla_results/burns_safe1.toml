@@ -1,0 +1,49 @@
+arch = "AArch64"
+name = "burns_safe1"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X10 = "x", X11 = "y", X12 = "z" }
+code = """
+	MOV W0,#1
+    STR W0,[X10]
+    DMB SY
+    loop0:
+    DMB SY
+    LDR W0,[X11]
+    CBNZ W0,loop0
+    DMB SY
+    LDR W0,[X12]
+    ADD W0,W0,#1
+    STR W0,[X12]
+    DMB SY
+    MOV W0,#0
+    STR W0,[X10]
+"""
+
+[thread.1]
+init = { X10 = "x", X11 = "y", X12 = "z" }
+code = """
+	loop1:
+    MOV W0,#0
+    STR W0,[X11]
+    DMB SY
+    LDR W0,[X10]
+    CBNZ W0,loop1
+    DMB SY
+    MOV W0,#1
+    STR W0,[X11]
+    DMB SY
+    LDR W0,[X10]
+    CBNZ W0,loop1
+    DMB SY
+    LDR W0,[X12]
+    ADD W0,W0,#1
+    STR W0,[X12]
+    DMB SY
+    MOV W0,#0
+    STR W0,[X11]
+"""
+
+[final]
+assertion = "*y = 1"

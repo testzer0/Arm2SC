@@ -1,0 +1,41 @@
+arch = "AArch64"
+name = "ISA2+dmb.ld+data+dmb.ld"
+hash = "9eda15f83f7e171152a1dd457d828b1e"
+cycle = "Rfe DMB.LDdRR Fre DMB.LDdWW Rfe DpDatadW"
+relax = ""
+safe = "Rfe Fre DMB.LDdWW DMB.LDdRR DpDatadW"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=W,2:z=F,2:x=T"
+com = "Rf Rf Fr"
+orig = "DMB.LDdWW Rfe DpDatadW Rfe DMB.LDdRR Fre"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB LD
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	ADD W2,W2,#1
+	STR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "z" }
+code = """
+	LDR W0,[X1]
+	DMB LD
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 2:X2 = 0"

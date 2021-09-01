@@ -1,0 +1,29 @@
+arch = "AArch64"
+name = "release-acquire-int"
+mapping = "1:X4=r2,1:X3=r0,1:X0=r1"
+hash = "5d3a55f1b0a89242b5ba18952485ea56"
+symbolic = ["s", "x", "y"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X2 = "s", X5 = "x" }
+code = """
+	LDR W0,[X1]
+	MOV W6,#1
+	STLR W6,[X2]
+	LDAR W3,[X2]
+	LDR W4,[X5]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X4 = 0 & 1:X3 = 1"

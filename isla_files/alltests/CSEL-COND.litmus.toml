@@ -1,0 +1,29 @@
+arch = "AArch64"
+name = "CSEL-COND"
+hash = "8cbfd5452580cf1e7e979b4a04619fad"
+symbolic = ["a", "x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X10 = "0", X11 = "0", X9 = "x", X6 = "a", X4 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	AND W2,W0,#128
+	LDR W3,[X4,W2,SXTW]
+	CMP W3,#0
+	CSEL W7,W10,W11,NE
+	LDR W8,[X9,W7,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X8 = 0"

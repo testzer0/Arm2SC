@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "C11-Z-forbid"
+hash = "0fb12520c15fe9630a02aff3ff997061"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	MOV W3,#3
+	STR W3,[X1]
+	MOV W4,#4
+	STR W4,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDAR W2,[X1]
+	LDAR W4,[X3]
+"""
+
+[thread.2]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X3]
+	MOV W2,#2
+	STLR W2,[X3]
+	MOV W5,#1
+	STLR W5,[X1]
+	LDR W4,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "2:X4 = 2 & 1:X2 = 4 & 1:X4 = 1"

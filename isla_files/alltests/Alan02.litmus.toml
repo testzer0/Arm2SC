@@ -1,0 +1,47 @@
+arch = "AArch64"
+name = "Alan02"
+mapping = "2:X2=r1,2:X0=r0"
+hash = "1fcfa0aeb9242d3fc9dba26bd3ac6e13"
+symbolic = ["ok", "x", "y", "z"]
+
+[locations]
+"ok" = "1"
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X0 = "y", X1 = "z" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.2]
+init = { X1 = "z", X3 = "x", X4 = "ok" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#1
+	B.NE label3
+	MOV W5,#1
+	STR W5,[X3]
+	B label4
+label3:
+	MOV W5,#0
+	STR W5,[X4]
+label4:
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 2 & 2:X0 = 1 & *ok = 1"

@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "Alan00"
+mapping = ""
+hash = "7e5f3f1ac6cff33a10c5abb76e1b6166"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Ws Ws"
+orig = "FenceWmbdWWOnceOnce WseOnceOnce FenceWmbdWWOnceOnce WseOnceOnce"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X0 = "y", X1 = "x" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 2"

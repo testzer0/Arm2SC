@@ -1,0 +1,45 @@
+arch = "AArch64"
+name = "rcu-relacq2-Auxiliary"
+mapping = "0:X7=r2,0:X5=r1,0:X3=r50101,0:X0=r0,1:X2=r60101,"
+hash = "fc12821f6ef35e553766f9a8b5228b8f"
+symbolic = ["csend01", "gpstart01", "u", "v", "x", "y"]
+
+[thread.0]
+init = { X1 = "x", X2 = "y", X4 = "gpstart01", X6 = "u", X8 = "v", X9 = "csend01" }
+code = """
+	LDR W0,[X1]
+	STR W0,[X2]
+	LDAR W3,[X4]
+	LDR W5,[X6]
+	LDR W7,[X8]
+	MOV W10,#1
+	STLR W10,[X9]
+"""
+
+[thread.1]
+init = { X0 = "y", X1 = "gpstart01", X3 = "csend01", X4 = "v" }
+code = """
+	MOV W5,#2
+	STR W5,[X0]
+	DMB SY
+	MOV W5,#1
+	STLR W5,[X1]
+	DMB SY
+	LDAR W2,[X3]
+	DMB SY
+	MOV W5,#1
+	STR W5,[X4]
+"""
+
+[thread.2]
+init = { X0 = "u", X1 = "x" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	MOV W2,#1
+	STLR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 0:X5 = 0 & 0:X7 = 1 & *y = 2 & (0:X3 = 1 | 1:X2 = 1)"

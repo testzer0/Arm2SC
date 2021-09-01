@@ -1,0 +1,39 @@
+arch = "AArch64"
+name = "WWC+dmb.ld+addr"
+hash = "489ace86b8a331f29a3dd3c927cf512d"
+cycle = "Rfe DMB.LDdRW Rfe DpAddrdW Wse"
+relax = ""
+safe = "Rfe Wse DMB.LDdRW DpAddrdW"
+prefetch = "1:x=F,1:y=W,2:y=F,2:x=W"
+com = "Rf Rf Ws"
+orig = "Rfe DMB.LDdRW Rfe DpAddrdW Wse"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB LD
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.2]
+init = { X4 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	MOV W3,#1
+	STR W3,[X4,W2,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 2 & 2:X0 = 1"

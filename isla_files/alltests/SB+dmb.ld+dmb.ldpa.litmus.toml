@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "SB+dmb.ld+dmb.ldpa"
+hash = "29286240699ca3476e27aea6cb3240ae"
+cycle = "Fre DMB.LDdWRPA FreAP DMB.LDdWR"
+relax = ""
+safe = "Fre DMB.LDdWR FreAP"
+prefetch = "0:x=F,0:y=T,1:y=F,1:x=T"
+com = "Fr Fr"
+orig = "DMB.LDdWR Fre DMB.LDdWRPA FreAP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB LD
+	LDR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB LD
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X2 = 0 & 1:X2 = 0"

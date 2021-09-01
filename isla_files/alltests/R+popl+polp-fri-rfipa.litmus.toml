@@ -1,0 +1,36 @@
+arch = "AArch64"
+name = "R+popl+polp-fri-rfipa"
+hash = "7559978108be963a6c74499e784b4785"
+cycle = "Fri RfiPA FreAP PodWWPL WseLL PodWRLP"
+relax = "FreAP WseLL"
+safe = "Rfi Fri PodWW PodWR"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Ws Fr"
+orig = "PodWWPL WseLL PodWRLP Fri RfiPA FreAP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+	LDR W4,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	LDR W2,[X3]
+	MOV W4,#1
+	STR W4,[X3]
+	LDAR W5,[X3]
+	LDR W6,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 2 & 0:X4 = 2 & 1:X6 = 2 & 1:X2 = 0 & 1:X5 = 1"

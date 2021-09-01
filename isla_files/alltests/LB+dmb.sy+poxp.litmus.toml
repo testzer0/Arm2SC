@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "LB+dmb.sy+poxp"
+hash = "16299e3c1176ac92b41d89d82e53d6a1"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Rf"
+orig = "DMB.SYdRW RfePX PodRWXP Rfe"
+symbolic = ["ok", "x", "y"]
+
+[locations]
+"ok" = "1"
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X6 = "ok", X4 = "x", X0 = "y" }
+code = """
+	LDXR W1,[X0]
+	STXR W2,W1,[X0]
+	CBNZ W2,Fail1
+	MOV W3,#1
+	STR W3,[X4]
+	B Exit1
+Fail1:
+	MOV W5,#0
+	STR W5,[X6]
+Exit1:
+"""
+
+[final]
+expect = "sat"
+assertion = "*ok = 1 & *y = 1 & 0:X0 = 1 & 1:X1 = 1"

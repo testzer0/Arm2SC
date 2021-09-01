@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "S+wmb+data"
+mapping = "1:X2=r1,1:X0=r0"
+hash = "2c04a62358a7c54425200e602ff85bd4"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Ws"
+orig = "FenceWmbdWWOnceOnce RfeOnceOnce DpDatadWOnceOnce WseOnceOnce"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X3 = "x" }
+code = """
+	LDR W0,[X1]
+	AND W2,W0,#128
+	ADD W2,W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 1"

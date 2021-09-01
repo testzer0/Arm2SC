@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "RfiSwpBis"
+hash = "b21896d79d82d055a724f7a3a4fe7c40"
+symbolic = ["x", "z"]
+
+[thread.0]
+init = { X3 = "z", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X8 = "x", X3 = "z" }
+code = """
+	LDR W0,[X3]
+	CBZ W0,LC00
+	MOV W2,#2
+	STR W2,[X3]
+	MOV W5,#3
+	SWP W5,W4,[X3]
+	AND W9,W4,#128
+	LDR W7,[X8,W9,SXTW]
+LC00:
+"""
+
+[final]
+expect = "sat"
+assertion = "*z = 3 & 1:X0 = 1 & 1:X4 = 2 & 1:X7 = 0"

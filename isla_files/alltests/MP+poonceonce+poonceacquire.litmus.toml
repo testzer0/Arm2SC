@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "MP+poonceonce+poonceacquire"
+mapping = "1:X2=r1,1:X0=r0"
+hash = "bc511af8e825c6a026232978cb32a629"
+cycle = "FreAcquireOnce PodWWOnceOnce RfeOnceOnce PodRROnceAcquire"
+relax = "FreAcquireOnce"
+safe = "PodRROnceAcquire RfeOnceOnce PodWWOnceOnce"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "PodWWOnceOnce RfeOnceOnce PodRROnceAcquire FreAcquireOnce"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X3 = "x" }
+code = """
+	LDR W0,[X1]
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X2 = 0"

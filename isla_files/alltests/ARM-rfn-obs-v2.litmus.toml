@@ -1,0 +1,25 @@
+arch = "AArch64"
+name = "ARM-rfn-obs-v2"
+hash = "3836efec0007c0c6da0196ffacff5f59"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X2 = "1", X1 = "x", X0 = "3" }
+code = """
+	STR W0,[X1]
+	DMB ST
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X4 = "2", X3 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	STR W0,[X3]
+	LDR W2,[X3]
+	STR W4,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X2 = 1 & *x = 3"

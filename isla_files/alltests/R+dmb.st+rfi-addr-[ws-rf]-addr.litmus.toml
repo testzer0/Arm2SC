@@ -1,0 +1,45 @@
+arch = "AArch64"
+name = "R+dmb.st+rfi-addr-[ws-rf]-addr"
+hash = "d4c6da3bb4b7831eaa44f3176e0e8710"
+cycle = "Rfi DpAddrdW WsLeave RfBack DpAddrdR Fre DMB.STdWW Wse"
+relax = ""
+safe = "Rfi Fre Wse DMB.STdWW DpAddrdW DpAddrdR [WsLeave,RfBack]"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Ws Fr Rf"
+orig = "DMB.STdWW Wse Rfi DpAddrdW WsLeave RfBack DpAddrdR Fre"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X9 = "x", X5 = "z", X1 = "y" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	LDR W2,[X1]
+	EOR W3,W2,W2
+	MOV W4,#1
+	STR W4,[X5,W3,SXTW]
+	LDR W6,[X5]
+	EOR W7,W6,W6
+	LDR W8,[X9,W7,SXTW]
+"""
+
+[thread.2]
+init = { X1 = "z" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & *y = 2 & *z = 2 & 1:X2 = 2 & 1:X6 = 2 & 1:X8 = 0"

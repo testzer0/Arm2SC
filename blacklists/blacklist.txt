@@ -1,6 +1,0 @@
-CAS+data1.litmus
-LB+rel+CSEL3.litmus
-LB+CSEL4.litmus
-LB+rel+CSEL.litmus
-CAS+data2.litmus
-LB+rel+CSEL2.litmus

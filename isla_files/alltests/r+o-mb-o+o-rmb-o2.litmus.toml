@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "R+o-mb-o+o-rmb-o2"
+mapping = "0:X1=r2,"
+hash = "bb1ea740d67ec737826938df001d20bd"
+symbolic = ["x", "y"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+
+[thread.0]
+init = { X0 = "y", X2 = "x" }
+code = """
+	MOV W3,#2
+	STR W3,[X0]
+	DMB SY
+	LDR W1,[X2]
+"""
+
+[thread.1]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB LD
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "*y = 2 & 0:X1 = 0"

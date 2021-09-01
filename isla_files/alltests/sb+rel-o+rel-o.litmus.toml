@@ -1,0 +1,29 @@
+arch = "AArch64"
+name = "SB+rel-o+rel-o"
+mapping = "0:X1=r2,1:X1=r4"
+hash = "5ff98a8b649f7bd045a9eeaab318ae9e"
+symbolic = ["x", "y"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+
+[thread.0]
+init = { X0 = "x", X2 = "y" }
+code = """
+	MOV W3,#1
+	STLR W3,[X0]
+	LDR W1,[X2]
+"""
+
+[thread.1]
+init = { X0 = "y", X2 = "x" }
+code = """
+	MOV W3,#1
+	STLR W3,[X0]
+	LDR W1,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X1 = 0 & 1:X1 = 0"

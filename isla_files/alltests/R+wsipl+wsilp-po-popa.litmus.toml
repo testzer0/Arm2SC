@@ -1,0 +1,36 @@
+arch = "AArch64"
+name = "R+wsipl+wsilp-po-popa"
+hash = "8bf3fd83e7b82ced9065182584c1e680"
+cycle = "PodWW PodWRPA FreAP WsiPL WseLL WsiLP"
+relax = "FreAP WseLL"
+safe = "Wsi PodWW PodWR"
+prefetch = ""
+com = "Ws Fr"
+orig = "WsiPL WseLL WsiLP PodWW PodWRPA FreAP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	MOV W2,#2
+	STLR W2,[X1]
+	LDR W3,[X1]
+"""
+
+[thread.1]
+init = { X4 = "y", X1 = "x" }
+code = """
+	MOV W0,#3
+	STLR W0,[X1]
+	MOV W2,#4
+	STR W2,[X1]
+	MOV W3,#1
+	STR W3,[X4]
+	LDAR W5,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 4 & *y = 1 & 0:X3 = 3 & 1:X5 = 0"

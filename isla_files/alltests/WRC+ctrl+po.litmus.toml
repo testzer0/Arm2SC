@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "WRC+ctrl+po"
+hash = "b653b2377e803b9793d79186dd058659"
+cycle = "Rfe PodRR Fre Rfe DpCtrldW"
+relax = ""
+safe = "Rfe Fre PodRR DpCtrldW"
+prefetch = "1:x=F,1:y=W,2:y=F,2:x=T"
+com = "Rf Rf Fr"
+orig = "Rfe DpCtrldW Rfe PodRR Fre"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	CBNZ W0,LC00
+LC00:
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 2:X2 = 0"

@@ -1,0 +1,39 @@
+arch = "AArch64"
+name = "ARMARM02"
+hash = "aecfe7bd667d20ce3dda44ded4f4050e"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "-1", X4 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#1
+	B.NE Exit1
+	EOR W2,W0,W0
+	LDR W3,[X4,W2,SXTW]
+Exit1:
+"""
+
+[thread.2]
+init = { X3 = "-1", X4 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#1
+	B.NE Exit2
+	EOR W2,W0,W0
+	LDR W3,[X4,W2,SXTW]
+Exit2:
+"""
+
+[final]
+expect = "unsat"
+assertion = "(1:X0 = 1 & 1:X3 = 0) | (2:X0 = 1 & 2:X3 = 0)"

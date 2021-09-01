@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "MP+dmb.syss"
+hash = "b51ce1d533839e313b717e9bcefc3375"
+cycle = "Rfe DMB.SYsRR Fre DMB.SYsWW"
+relax = ""
+safe = "Rfe Fre DMB.SYsWW DMB.SYsRR"
+prefetch = ""
+com = "Rf Fr"
+orig = "DMB.SYsWW Rfe DMB.SYsRR Fre"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	LDR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~(*x = 2 & ((1:X0 = 0 & (1:X2 = 0 | 1:X2 = 1 | 1:X2 = 2)) | (1:X0 = 1 & (1:X2 = 2 | 1:X2 = 1)) | (1:X0 = 2 & 1:X2 = 2)))"

@@ -1,0 +1,42 @@
+arch = "AArch64"
+name = "WWC+o-branch-o+o-branch-o"
+mapping = "0:X2=r3,0:X0=r1,1:X2=r4,1:X0=r2,"
+hash = "b09e6037e4d6a72b6498b5e52cf5249d"
+symbolic = ["x", "y"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+
+[thread.0]
+init = { X1 = "x", X3 = "y" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#0
+	B.EQ label13
+	MOV W4,#1
+	STR W4,[X3]
+label13:
+"""
+
+[thread.1]
+init = { X1 = "y", X3 = "x" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#0
+	B.EQ label14
+	MOV W4,#1
+	STR W4,[X3]
+label14:
+"""
+
+[thread.2]
+init = { X0 = "x" }
+code = """
+	MOV W1,#2
+	STR W1,[X0]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 2 & 1:X0 = 1 & *x = 2"

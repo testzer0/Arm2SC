@@ -1,0 +1,41 @@
+arch = "AArch64"
+name = "ISA2+po+ctrlisb+po"
+hash = "6e1155b4ba1b707c034e64da9afdeac0"
+cycle = "Rfe PodRR Fre PodWW Rfe DpCtrlIsbdW"
+relax = ""
+safe = "Rfe Fre PodWW PodRR DpCtrlIsbdW"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=W,2:z=F,2:x=T"
+com = "Rf Rf Fr"
+orig = "PodWW Rfe DpCtrlIsbdW Rfe PodRR Fre"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	CBNZ W0,LC00
+LC00:
+	ISB
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "z" }
+code = """
+	LDR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 2:X2 = 0"

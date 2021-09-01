@@ -1,0 +1,29 @@
+arch = "AArch64"
+name = "CO-SBI"
+hash = "b4293f63c589d742a492796a4d29a12a"
+prefetch = ""
+com = "Fr Fr"
+orig = "Rfi PosRR Fre Rfi PosRR Fre"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	LDR W2,[X1]
+	LDR W3,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	LDR W2,[X1]
+	LDR W3,[X1]
+"""
+
+[final]
+expect = "unsat"
+assertion = "~((*x = 2 & 1:X3 = 2 & 1:X2 = 2 & ((0:X3 = 2 & (0:X2 = 2 | 0:X2 = 1)) | (0:X3 = 1 & 0:X2 = 1))) | (*x = 1 & 0:X3 = 1 & 0:X2 = 1 & ((1:X3 = 2 & 1:X2 = 2) | (1:X3 = 1 & (1:X2 = 2 | 1:X2 = 1)))))"

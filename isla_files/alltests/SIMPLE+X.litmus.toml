@@ -1,0 +1,17 @@
+arch = "AArch64"
+name = "SIMPLE+X"
+hash = "2b459a00e0ae96f779c3bb183a2665f4"
+orig = "PosRWXP RfePX"
+symbolic = ["x"]
+
+[thread.0]
+init = { X0 = "x" }
+code = """
+	MOV W3,#1
+	LDXR W1,[X0]
+	STXR W2,W3,[X0]
+"""
+
+[final]
+expect = "unsat"
+assertion = "~true"

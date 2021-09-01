@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "MP+once-wb-once+once-rb-once"
+mapping = "1:X2=r2,1:X0=r1"
+hash = "4df754a372d75cbefa3a15f0b0c27a70"
+symbolic = ["a", "x"]
+
+[locations]
+"a" = "0"
+"x" = "0"
+
+[thread.0]
+init = { X0 = "a", X1 = "x" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x", X3 = "a" }
+code = """
+	LDR W0,[X1]
+	DMB LD
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 2 & 1:X2 = 0"

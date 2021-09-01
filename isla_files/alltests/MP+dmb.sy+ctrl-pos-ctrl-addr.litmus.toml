@@ -1,0 +1,39 @@
+arch = "AArch64"
+name = "MP+dmb.sy+ctrl-pos-ctrl-addr"
+hash = "5d7b960c1713929af2950d92d7d9155f"
+cycle = "Rfe DpCtrldR PosRR DpCtrldR DpAddrdR Fre DMB.SYdWW"
+relax = ""
+safe = "Rfe Fre PosRR DMB.SYdWW DpAddrdR DpCtrldR"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "DMB.SYdWW Rfe DpCtrldR PosRR DpCtrldR DpAddrdR Fre"
+symbolic = ["a", "x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X9 = "x", X6 = "a", X3 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	CBNZ W0,LC00
+LC00:
+	LDR W2,[X3]
+	LDR W4,[X3]
+	CBNZ W4,LC01
+LC01:
+	LDR W5,[X6]
+	EOR W7,W5,W5
+	LDR W8,[X9,W7,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & *y = 1 & 1:X0 = 1 & 1:X8 = 0"

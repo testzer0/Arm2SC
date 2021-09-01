@@ -1,0 +1,44 @@
+arch = "AArch64"
+name = "Z6.0+fencembonceonce+ctrlonceonce+poreleaseacquire"
+mapping = "1:X2=r1,1:X0=r0,2:X1=r0"
+hash = "b0e9296d33ead1e3b87dbaaddab9c8a1"
+cycle = "FreAcquireOnce FenceMbdWWOnceOnce RfeOnceOnce DpCtrldWOnceOnce WseOnceRelease PodWRReleaseAcquire"
+relax = "FreAcquireOnce WseOnceRelease"
+safe = "RfeOnceOnce FenceMbdWWOnceOnce DpCtrldWOnceOnce PodWRReleaseAcquire"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=W,2:z=F,2:x=T"
+com = "Rf Ws Fr"
+orig = "FenceMbdWWOnceOnce RfeOnceOnce DpCtrldWOnceOnce WseOnceRelease PodWRReleaseAcquire FreAcquireOnce"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X3 = "z" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#0
+	B.EQ label51
+label51:
+	MOV W4,#1
+	STR W4,[X3]
+"""
+
+[thread.2]
+init = { X0 = "z", X2 = "x" }
+code = """
+	MOV W3,#2
+	STLR W3,[X0]
+	LDAR W1,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "*z = 2 & 1:X0 = 1 & 2:X1 = 0"

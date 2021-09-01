@@ -1,0 +1,39 @@
+arch = "AArch64"
+name = "2+2W+dmb.sy+rfi-pos-ctrl-addr"
+hash = "e5ff24032bcb2da10a7832532eb1d389"
+cycle = "Rfi PosRR DpCtrldR DpAddrdW Wse DMB.SYdWW Wse"
+relax = ""
+safe = "Rfi Wse PosRR DMB.SYdWW DpAddrdW DpCtrldR"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Ws Ws"
+orig = "DMB.SYdWW Wse Rfi PosRR DpCtrldR DpAddrdW Wse"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X8 = "x", X5 = "z", X1 = "y" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	LDR W2,[X1]
+	LDR W3,[X1]
+	CBNZ W3,LC00
+LC00:
+	LDR W4,[X5]
+	EOR W6,W4,W4
+	MOV W7,#1
+	STR W7,[X8,W6,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 2 & 1:X2 = 2 & 1:X3 = 2"

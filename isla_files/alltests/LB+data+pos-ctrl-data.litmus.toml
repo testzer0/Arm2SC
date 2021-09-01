@@ -1,0 +1,36 @@
+arch = "AArch64"
+name = "LB+data+pos-ctrl-data"
+hash = "2213a3cc31cb25a4854074c0883b786f"
+cycle = "Rfe PosRR DpCtrldR DpDatadW Rfe DpDatadW"
+relax = ""
+safe = "Rfe PosRR DpDatadW DpCtrldR"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Rf"
+orig = "DpDatadW Rfe PosRR DpCtrldR DpDatadW Rfe"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	ADD W2,W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X6 = "x", X4 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	LDR W2,[X1]
+	CBNZ W2,LC00
+LC00:
+	LDR W3,[X4]
+	EOR W5,W3,W3
+	ADD W5,W5,#1
+	STR W5,[X6]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & *y = 1 & 0:X0 = 1 & 1:X0 = 1 & 1:X2 = 1"

@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "R+poreleaseonce+poonceonce"
+mapping = "1:X1=r0"
+hash = "2e6bb16e5544cd14e45813f667a691e5"
+cycle = "WseOnceOnce PodWROnceOnce FreOnceRelease PodWWReleaseOnce"
+relax = "FreOnceRelease"
+safe = "WseOnceOnce PodWROnceOnce PodWWReleaseOnce"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Ws Fr"
+orig = "PodWWReleaseOnce WseOnceOnce PodWROnceOnce FreOnceRelease"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STLR W2,[X0]
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X0 = "y", X2 = "x" }
+code = """
+	MOV W3,#2
+	STR W3,[X0]
+	LDR W1,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "*y = 2 & 1:X1 = 0"

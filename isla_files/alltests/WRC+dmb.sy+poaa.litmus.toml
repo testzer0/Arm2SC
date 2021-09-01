@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "WRC+dmb.sy+poaa"
+hash = "0d3a765f60cb12afbe5d6224bab0e854"
+cycle = "Rfe DMB.SYdRW RfePA PodRRAA FreAP"
+relax = "PodRRAA"
+safe = "Rfe Fre DMB.SYdRW"
+prefetch = "1:x=F,1:y=W,2:y=F,2:x=T"
+com = "Rf Rf Fr"
+orig = "Rfe DMB.SYdRW RfePA PodRRAA FreAP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 2:X2 = 0"

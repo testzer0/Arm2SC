@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "MP+dmb.sy+popa-rmwal-polp"
+hash = "76a369c2c82b5bad764d9d36a28716f6"
+generator = "diyone7 (version 7.52+7(dev))"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "DMB.SYdWW Rfe PodRRPA RmwAL PodWRLP Fre"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X7 = "x", X2 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	MOV W4,#1
+	LDAXR W3,[X2]
+	STLXR W5,W4,[X2]
+	LDR W6,[X7]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X5 = 0 & 1:X0 = 1 & 1:X6 = 0"

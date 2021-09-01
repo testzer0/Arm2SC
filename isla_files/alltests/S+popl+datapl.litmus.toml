@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "S+popl+datapl"
+hash = "95587d4be9c91bd90f2d9f2344121ee7"
+cycle = "RfeLP DpDatadWPL WseLP PodWWPL"
+relax = ""
+safe = "PodWW DpDatadW RfeLP WseLP"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Ws"
+orig = "PodWWPL RfeLP DpDatadWPL WseLP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	ADD W2,W2,#1
+	STLR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 1"

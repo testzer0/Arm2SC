@@ -1,0 +1,33 @@
+arch = "AArch64"
+name = "LISA-rfi-acq3"
+mapping = "1:X5=r3,1:X4=r2,1:X2=r1,1:X0=r0"
+hash = "9e2c9d73a93c2d9549a7df59ee9f9444"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "FenceMbdWWOnceOnce RfeOnceOnce DpDatadWOnceOnce RfiOnceAcquire PodRRAcquireOnce FreOnceOnce"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X3 = "z", X6 = "x" }
+code = """
+	LDR W0,[X1]
+	AND W2,W0,#128
+	ADD W2,W2,#1
+	STR W2,[X3]
+	LDAR W4,[X3]
+	LDR W5,[X6]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X4 = 1 & 1:X5 = 0"

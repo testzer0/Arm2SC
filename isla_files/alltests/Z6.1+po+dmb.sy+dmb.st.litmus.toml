@@ -1,0 +1,42 @@
+arch = "AArch64"
+name = "Z6.1+po+dmb.sy+dmb.st"
+hash = "8617f582e1e6c4663d7bf326ab5316fa"
+cycle = "Rfe DMB.STdRW Wse PodWW Wse DMB.SYdWW"
+relax = ""
+safe = "Rfe Wse PodWW DMB.STdRW DMB.SYdWW"
+prefetch = "0:x=F,0:y=W,1:y=F,1:z=W,2:z=F,2:x=W"
+com = "Ws Rf Ws"
+orig = "PodWW Wse DMB.SYdWW Rfe DMB.STdRW Wse"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "z", X1 = "y" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "z" }
+code = """
+	LDR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 2 & 2:X0 = 1"

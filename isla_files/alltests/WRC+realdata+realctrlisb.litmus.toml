@@ -1,0 +1,40 @@
+arch = "AArch64"
+name = "WRC+realdata+realctrlisb"
+hash = "422ad99c55fdf6d9255ac01e85ac31bd"
+prefetch = "1:x=F,1:y=W,2:y=F,2:x=T"
+com = "Rf Rf Fr"
+orig = "Rfe DpDatadW Rfe DpCtrlIsbdR Fre"
+symbolic = ["x", "y"]
+
+[locations]
+"x" = "0"
+"y" = "10"
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	STR W0,[X3]
+"""
+
+[thread.2]
+init = { X2 = "-1", X3 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#1
+	B.NE LC00
+	ISB
+	LDR W2,[X3]
+LC00:
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 2:X2 = 0"

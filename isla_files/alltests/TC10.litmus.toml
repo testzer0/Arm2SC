@@ -1,0 +1,54 @@
+arch = "AArch64"
+name = "TC10"
+mapping = "0:X2=r9,0:X0=r1,1:X2=r9,1:X0=r2,3:X2=r9,3:X0=r3"
+hash = "4855b8e7a4ac81d5b4f7592f96905242"
+symbolic = ["x", "y", "z"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+"z" = "0"
+
+[thread.0]
+init = { X1 = "x", X3 = "y" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#1
+	B.NE label29
+	MOV W4,#1
+	STR W4,[X3]
+label29:
+"""
+
+[thread.1]
+init = { X1 = "y", X3 = "x" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#1
+	B.NE label30
+	MOV W4,#1
+	STR W4,[X3]
+label30:
+"""
+
+[thread.2]
+init = { X0 = "z" }
+code = """
+	MOV W1,#1
+	STR W1,[X0]
+"""
+
+[thread.3]
+init = { X1 = "z", X3 = "x" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#1
+	B.NE label31
+	MOV W4,#1
+	STR W4,[X3]
+label31:
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = 1 & 3:X0 = 0"

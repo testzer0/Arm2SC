@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "R+poll+pola"
+hash = "de1be0c4b8a1a5cf06a87288a59e99ff"
+cycle = "FreAL PodWWLL WseLL PodWRLA"
+relax = ""
+safe = "PodWW PodWR FreAL WseLL"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Ws Fr"
+orig = "PodWWLL WseLL PodWRLA FreAL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*y = 2 & 1:X2 = 0"

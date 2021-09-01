@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "LB+dmb.stal+dataal"
+hash = "49615e3009f751c4de6e16247f683344"
+cycle = "RfeLA DMB.STdRWAL RfeLA DpDatadWAL"
+relax = ""
+safe = "DMB.STdRW DpDatadW RfeLA"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Rf"
+orig = "DMB.STdRWAL RfeLA DpDatadWAL RfeLA"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDAR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	EOR W2,W0,W0
+	ADD W2,W2,#1
+	STLR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = 1"

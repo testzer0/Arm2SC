@@ -1,0 +1,33 @@
+arch = "AArch64"
+name = "MP+dmb.sy+addr-isb"
+hash = "c97a5cc4a82a51747392895de2c7c43e"
+cycle = "Rfe DpAddrdW ISBdWR Fre DMB.SYdWW"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "DMB.SYdWW Rfe DpAddrdW ISBdWR Fre"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X6 = "x", X4 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	AND W2,W0,#128
+	MOV W3,#1
+	STR W3,[X4,W2,SXTW]
+	ISB
+	LDR W5,[X6]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X5 = 0"

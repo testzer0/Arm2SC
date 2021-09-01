@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "WRC+o-mb-o+o-mb-o"
+mapping = "1:X0=r3,2:X2=r2,2:X0=r1"
+hash = "cb87993fa51e060053a1256ab7dbe9fe"
+symbolic = ["x", "y"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+
+[thread.0]
+init = { X0 = "y" }
+code = """
+	MOV W1,#1
+	STR W1,[X0]
+"""
+
+[thread.1]
+init = { X1 = "y", X2 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.2]
+init = { X1 = "x", X3 = "y" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 2:X2 = 0"

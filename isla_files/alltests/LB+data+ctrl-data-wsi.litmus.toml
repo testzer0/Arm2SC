@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "LB+data+ctrl-data-wsi"
+hash = "28ff2a88c7e9a1bea4da40b53daa868a"
+cycle = "Rfe DpDatadW Rfe DpCtrldR DpDatadW Wsi"
+relax = ""
+safe = "Rfe Wsi DpDatadW DpCtrldR"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Rf"
+orig = "DpDatadW Rfe DpCtrldR DpDatadW Wsi Rfe"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	ADD W2,W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X5 = "x", X3 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	CBNZ W0,LC00
+LC00:
+	LDR W2,[X3]
+	EOR W4,W2,W2
+	ADD W4,W4,#1
+	STR W4,[X5]
+	MOV W6,#2
+	STR W6,[X5]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 1 & 0:X0 = 2 & 1:X0 = 1"

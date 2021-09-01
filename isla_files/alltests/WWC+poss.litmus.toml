@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "WWC+poss"
+hash = "e84934ab1dbf2e3fc034c182a007f7d9"
+cycle = "Rfe PosRW Rfe PosRW Wse"
+relax = ""
+safe = "Rfe Wse PosRW"
+prefetch = ""
+com = "Rf Rf Ws"
+orig = "Rfe PosRW Rfe PosRW Wse"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[thread.2]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	MOV W2,#3
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~((1:X0 = 0 & ((2:X0 = 0 & (*x = 1 | *x = 2 | *x = 3)) | (2:X0 = 1 & (*x = 3 | *x = 2)) | (2:X0 = 2 & (*x = 1 | *x = 3)))) | (1:X0 = 1 & ((*x = 3 & (2:X0 = 2 | 2:X0 = 1 | 2:X0 = 0)) | (*x = 2 & (2:X0 = 0 | 2:X0 = 1)))) | (1:X0 = 3 & ((2:X0 = 0 & (*x = 1 | *x = 2)) | (2:X0 = 1 & *x = 2))))"

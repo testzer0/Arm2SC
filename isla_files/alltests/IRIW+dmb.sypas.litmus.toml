@@ -1,0 +1,44 @@
+arch = "AArch64"
+name = "IRIW+dmb.sypas"
+hash = "8dcaa0e02a266b6889158dd2ad772b7c"
+cycle = "Rfe DMB.SYdRRPA FreAP Rfe DMB.SYdRRPA FreAP"
+relax = "DMB.SYdRRPA"
+safe = "Rfe Fre"
+prefetch = "1:x=F,1:y=T,3:y=F,3:x=T"
+com = "Rf Fr Rf Fr"
+orig = "Rfe DMB.SYdRRPA FreAP Rfe DMB.SYdRRPA FreAP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	LDAR W2,[X3]
+"""
+
+[thread.2]
+init = { X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.3]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X2 = 0 & 3:X0 = 1 & 3:X2 = 0"

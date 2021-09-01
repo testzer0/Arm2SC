@@ -1,0 +1,36 @@
+arch = "AArch64"
+name = "LB+data+addr-rfi-data"
+hash = "6ccfbafb7a10bbaebab6baa0ccac6c84"
+cycle = "Rfi DpDatadW Rfe DpDatadW Rfe DpAddrdW"
+relax = ""
+safe = "Rfi Rfe DpAddrdW DpDatadW"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Rf"
+orig = "DpDatadW Rfe DpAddrdW Rfi DpDatadW Rfe"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	ADD W2,W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X7 = "x", X4 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	MOV W3,#1
+	STR W3,[X4,W2,SXTW]
+	LDR W5,[X4]
+	EOR W6,W5,W5
+	ADD W6,W6,#1
+	STR W6,[X7]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & *y = 1 & *z = 1 & 0:X0 = 1 & 1:X0 = 1 & 1:X5 = 1"

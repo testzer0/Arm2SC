@@ -1,0 +1,30 @@
+arch = "AArch64"
+name = "SB+rfi-pos"
+hash = "8106d3aa8dce545c0618f0c19281f40d"
+generator = "diyone7 (version 7.51+1(dev))"
+prefetch = "0:x=F,0:y=T,1:y=F,1:x=T"
+com = "Fr Fr"
+orig = "Rfi PodRR Fre Rfi PodRR Fre"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X4 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	LDR W2,[X1]
+	LDR W3,[X4]
+"""
+
+[thread.1]
+init = { X4 = "x", X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	LDR W2,[X1]
+	LDR W3,[X4]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X2 = 1 & 0:X3 = 0 & 1:X2 = 1 & 1:X3 = 0"

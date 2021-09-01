@@ -1,0 +1,33 @@
+arch = "AArch64"
+name = "SB+popx+poxx+SYS2"
+hash = "912791d47256fd2ac922c4025984e204"
+cycle = "PodWRPX FreXX PodWRXX FreXP"
+relax = "FreXP FreXX"
+safe = "PodWR"
+prefetch = "0:x=F,0:y=T,1:y=F,1:x=T"
+com = "Fr Fr"
+orig = "PodWRPX FreXX PodWRXX FreXP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X2 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	LDXR W3,[X2]
+	STXR W4,W3,[X2]
+"""
+
+[thread.1]
+init = { X4 = "x", X0 = "y" }
+code = """
+	MOV W1,#1
+	LDXR W2,[X0]
+	STXR W3,W1,[X0]
+	LDXR W5,[X4]
+	STXR W6,W5,[X4]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & *y = 1 & 0:X4 = 0 & 0:X3 = 0 & 1:X6 = 0 & 1:X3 = 0 & 1:X2 = 0 & 1:X5 = 0"

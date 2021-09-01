@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "LB+pooncereleases"
+mapping = "0:X0=r0,1:X0=r0"
+hash = "05da8c56f932207cd3f1372d84e5e199"
+cycle = "PodRWOnceRelease RfeReleaseOnce PodRWOnceRelease RfeReleaseOnce"
+relax = "RfeReleaseOnce"
+safe = "PodRWOnceRelease"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Rf"
+orig = "PodRWOnceRelease RfeReleaseOnce PodRWOnceRelease RfeReleaseOnce"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x", X2 = "y" }
+code = """
+	LDR W0,[X1]
+	MOV W3,#1
+	STLR W3,[X2]
+"""
+
+[thread.1]
+init = { X1 = "y", X2 = "x" }
+code = """
+	LDR W0,[X1]
+	MOV W3,#1
+	STLR W3,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = 1"

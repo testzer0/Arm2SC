@@ -1,0 +1,63 @@
+arch = "AArch64"
+name = "alt-ww-rw+rel+acq-o+o-rel+acq-o+o-wb-rel+acq-o"
+mapping = "1:X0=r1,3:X0=r2,5:X0=r3"
+hash = "cdfd917657281c5fc105e92a5aa5111b"
+symbolic = ["a", "c", "x", "y", "z"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+
+[thread.0]
+init = { X0 = "x" }
+code = """
+	MOV W1,#1
+	STLR W1,[X0]
+"""
+
+[thread.1]
+init = { X1 = "x", X2 = "y" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.2]
+init = { X0 = "y", X1 = "z" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	MOV W2,#1
+	STLR W2,[X1]
+"""
+
+[thread.3]
+init = { X1 = "z", X2 = "a" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.4]
+init = { X0 = "a", X1 = "c" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STLR W2,[X1]
+"""
+
+[thread.5]
+init = { X1 = "c", X2 = "x" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#2
+	STR W3,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & *y = 2 & 3:X0 = 1 & *a = 2 & 5:X0 = 1 & *x = 1"

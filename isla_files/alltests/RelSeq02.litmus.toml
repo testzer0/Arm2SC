@@ -1,0 +1,36 @@
+arch = "AArch64"
+name = "RelSeq02"
+hash = "e9a884b3ac6b2b583abdc33140b91542"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X2 = "2", X1 = "1", X0 = "x" }
+code = """
+	STLR W1,[X0]
+	STR W2,[X0]
+"""
+
+[thread.1]
+init = { X3 = "3", X0 = "x" }
+code = """
+	LDXR W1,[X0]
+	STXR W2,W3,[X0]
+"""
+
+[thread.2]
+init = { X1 = "y", X0 = "x" }
+code = """
+	LDAR W2,[X0]
+	LDR W3,[X1]
+"""
+
+[thread.3]
+init = { X2 = "1", X1 = "x", X0 = "y" }
+code = """
+	STLR W2,[X0]
+	LDAR W3,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 3 & 1:X1 = 2 & 1:X2 = 0 & 2:X2 = 3 & 2:X3 = 0 & 3:X3 = 0"

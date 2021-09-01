@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "C11-B2"
+hash = "86f6e3dd58beb28c224259ef558fa4c9"
+symbolic = ["a", "b", "x", "y"]
+
+[thread.0]
+init = { X3 = "a", X1 = "x" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X5 = "y", X3 = "b", X1 = "a" }
+code = """
+	LDR W0,[X1]
+	DMB LD
+	LDAR W2,[X3]
+	LDAR W4,[X5]
+"""
+
+[thread.2]
+init = { X4 = "x", X1 = "y" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	MOV W2,#2
+	STLR W2,[X1]
+	MOV W3,#1
+	STLR W3,[X4]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 2 & 1:X0 = 1 & 1:X2 = 0 & 1:X4 = 1"

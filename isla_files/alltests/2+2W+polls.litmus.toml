@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "2+2W+polls"
+hash = "771226dda3f1d5092d2971175a6a5943"
+cycle = "WseLL PodWWLL WseLL PodWWLL"
+relax = ""
+safe = "PodWW WseLL"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Ws Ws"
+orig = "PodWWLL WseLL PodWWLL WseLL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 2"

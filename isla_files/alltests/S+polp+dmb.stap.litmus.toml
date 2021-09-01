@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "S+polp+dmb.stap"
+hash = "20befff0a4f08cf4b449c4e9b22f52b7"
+cycle = "RfePA DMB.STdRWAP WsePL PodWWLP"
+relax = ""
+safe = "PodWW DMB.STdRW RfePA WsePL"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Ws"
+orig = "PodWWLP RfePA DMB.STdRWAP WsePL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 1"

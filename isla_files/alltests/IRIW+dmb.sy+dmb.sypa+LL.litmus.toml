@@ -1,0 +1,44 @@
+arch = "AArch64"
+name = "IRIW+dmb.sy+dmb.sypa+LL"
+hash = "a99e18c96af365ed5dd29593697244a6"
+cycle = "DMB.SYdRR FrePL RfeLP DMB.SYdRRPA FreAL RfeLP"
+relax = "DMB.SYdRRPA"
+safe = "DMB.SYdRR [FrePL,RfeLP]"
+prefetch = "1:x=F,1:y=T,3:y=F,3:x=T"
+com = "Rf Fr Rf Fr"
+orig = "RfeLP DMB.SYdRR FrePL RfeLP DMB.SYdRRPA FreAL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	LDR W2,[X3]
+"""
+
+[thread.2]
+init = { X1 = "y" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+"""
+
+[thread.3]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X2 = 0 & 3:X0 = 1 & 3:X2 = 0"

@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "MP+dmb.sys+pos"
+hash = "14270d27470826678001935fb489a0fd"
+cycle = "Rfe PosRR Fre DMB.SYsWW"
+relax = ""
+safe = "Rfe Fre PosRR DMB.SYsWW"
+prefetch = ""
+com = "Rf Fr"
+orig = "DMB.SYsWW Rfe PosRR Fre"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	LDR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~(*x = 2 & ((1:X0 = 0 & (1:X2 = 0 | 1:X2 = 1 | 1:X2 = 2)) | (1:X0 = 1 & (1:X2 = 2 | 1:X2 = 1)) | (1:X0 = 2 & 1:X2 = 2)))"

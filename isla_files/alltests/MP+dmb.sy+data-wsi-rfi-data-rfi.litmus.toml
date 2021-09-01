@@ -1,0 +1,40 @@
+arch = "AArch64"
+name = "MP+dmb.sy+data-wsi-rfi-data-rfi"
+hash = "57af6f3c4a70851faf645fd7a1afb4fe"
+cycle = "Rfi Fre DMB.SYdWW Rfe DpDatadW Wsi Rfi DpDatadW"
+relax = ""
+safe = "Rfi Rfe Fre Wsi DMB.SYdWW DpDatadW"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "DMB.SYdWW Rfe DpDatadW Wsi Rfi DpDatadW Rfi Fre"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X7 = "x", X3 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	ADD W2,W2,#1
+	STR W2,[X3]
+	MOV W4,#2
+	STR W4,[X3]
+	LDR W5,[X3]
+	EOR W6,W5,W5
+	ADD W6,W6,#1
+	STR W6,[X7]
+	LDR W8,[X7]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 1 & *z = 2 & 1:X0 = 1 & 1:X5 = 2 & 1:X8 = 1"

@@ -1,0 +1,66 @@
+arch = "AArch64"
+name = "LISA-cpord-obs-failure"
+mapping = "0:X3=r1,0:X0=r0,1:X0=r2,2:X1=r4,"
+hash = "2afb6c78387ef95c0a89d794f3129bd5"
+symbolic = ["x1", "x2", "x3", "x4", "y1", "y2", "y3"]
+
+[thread.0]
+init = { X1 = "x1", X2 = "x2", X4 = "y1", X5 = "y2" }
+code = """
+	LDR W0,[X1]
+	STR W0,[X2]
+	LDR W3,[X4]
+	STR W3,[X5]
+"""
+
+[thread.1]
+init = { X1 = "x2", X2 = "x3" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.2]
+init = { X0 = "x3", X2 = "x4" }
+code = """
+	MOV W3,#2
+	STR W3,[X0]
+	DMB SY
+	LDR W1,[X2]
+"""
+
+[thread.3]
+init = { X0 = "x4", X1 = "y1" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.4]
+init = { X0 = "y2", X1 = "y3" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.5]
+init = { X0 = "y3", X1 = "x1" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 0:X3 = 1 & 1:X0 = 1 & *x3 = 2 & 2:X1 = 0 & *y2 = 2 & *y3 = 2"

@@ -1,0 +1,34 @@
+arch = "AArch64"
+name = "Alan06"
+mapping = "1:X0=r1,2:X2=r3,2:X0=r2"
+hash = "8d268575dda37dbdd77cabe2712d44ba"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X2 = "z" }
+code = """
+	LDR W0,[X1]
+	STR W0,[X2]
+"""
+
+[thread.2]
+init = { X1 = "z", X3 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB LD
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & 2:X2 = 0"

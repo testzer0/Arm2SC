@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "R+po-ctrlpl+rfilp-pospa"
+hash = "d237a10b3f9db425451747c9ff152c7a"
+cycle = "PodWR DpCtrldWPL WseLL RfiLP PosRRPA FreAP"
+relax = "FreAP WseLL"
+safe = "Rfi PosRR PodWR DpCtrldW"
+prefetch = ""
+com = "Ws Fr"
+orig = "PodWR DpCtrldWPL WseLL RfiLP PosRRPA FreAP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#3
+	STR W0,[X1]
+	LDR W2,[X3]
+	CBNZ W2,LC00
+LC00:
+	MOV W4,#1
+	STLR W4,[X1]
+	LDR W5,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	LDR W2,[X1]
+	LDAR W3,[X1]
+	LDR W4,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 3 & 0:X5 = 2 & 1:X4 = 3 & 1:X2 = 2 & 1:X3 = 2"

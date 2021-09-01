@@ -1,0 +1,43 @@
+arch = "AArch64"
+name = "IRRWIW+poaa+poal+LNa"
+hash = "b2ad43dc68e831fcd30bcccbf7ada3c9"
+cycle = "RfePA PodRWAL WseLL RfeLA PodRRAA FreAP"
+relax = "PodRRAA PodRWAL"
+safe = "Rfe Fre [WsePL,RfeLP]"
+prefetch = "1:x=F,1:y=T,3:y=F,3:x=W"
+com = "Rf Fr Rf Ws"
+orig = "RfeLA PodRRAA FreAP RfePA PodRWAL WseLL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDAR W0,[X1]
+	LDAR W2,[X3]
+"""
+
+[thread.2]
+init = { X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.3]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 2 & 1:X2 = 0 & 3:X0 = 1"

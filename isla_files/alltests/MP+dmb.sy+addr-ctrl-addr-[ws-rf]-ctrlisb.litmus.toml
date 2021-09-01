@@ -1,0 +1,50 @@
+arch = "AArch64"
+name = "MP+dmb.sy+addr-ctrl-addr-[ws-rf]-ctrlisb"
+hash = "b9e256626d2ee5f2e2965c4a8b4a6170"
+cycle = "Rfe DpAddrdR DpCtrldR DpAddrdW WsLeave RfBack DpCtrlIsbdR Fre DMB.SYdWW"
+relax = ""
+safe = "Rfe Fre DMB.SYdWW DpAddrdW DpAddrdR DpCtrldR DpCtrlIsbdR [WsLeave,RfBack]"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr Rf"
+orig = "DMB.SYdWW Rfe DpAddrdR DpCtrldR DpAddrdW WsLeave RfBack DpCtrlIsbdR Fre"
+symbolic = ["a", "b", "x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X12 = "x", X9 = "b", X6 = "a", X4 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	LDR W3,[X4,W2,SXTW]
+	CBNZ W3,LC00
+LC00:
+	LDR W5,[X6]
+	EOR W7,W5,W5
+	MOV W8,#1
+	STR W8,[X9,W7,SXTW]
+	LDR W10,[X9]
+	CBNZ W10,LC01
+LC01:
+	ISB
+	LDR W11,[X12]
+"""
+
+[thread.2]
+init = { X1 = "b" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "*b = 2 & *x = 1 & *y = 1 & 1:X0 = 1 & 1:X10 = 2 & 1:X11 = 0"

@@ -1,0 +1,33 @@
+arch = "AArch64"
+name = "MP+dmb.st+popl-rfilp-addr"
+hash = "07174282ed9784cc9d07fa4a23ef4294"
+cycle = "Rfe PodRWPL RfiLP DpAddrdR Fre DMB.SYdWW"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "DMB.SYdWW Rfe PodRWPL RfiLP DpAddrdR Fre"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X7 = "x", X3 = "z", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+	LDR W4,[X3]
+	EOR W5,W4,W4
+	LDR W6,[X7,W5,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X4 = 1 & 1:X6 = 0"

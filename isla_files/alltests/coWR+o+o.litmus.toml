@@ -1,0 +1,27 @@
+arch = "AArch64"
+name = "coWR+once+once"
+mapping = "0:X1=r1,"
+hash = "01be04f61ae04d52c02ffbb4ab8f8911"
+symbolic = ["x"]
+
+[locations]
+"x" = "0"
+
+[thread.0]
+init = { X0 = "x" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	LDR W1,[X0]
+"""
+
+[thread.1]
+init = { X0 = "x" }
+code = """
+	MOV W1,#2
+	STR W1,[X0]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X1 = 2 & *x = 1"

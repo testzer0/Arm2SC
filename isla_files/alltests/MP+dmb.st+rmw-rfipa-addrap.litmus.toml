@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "MP+dmb.st+rmw-rfipa-addrap"
+hash = "8e77d3e5d00a6a54f0a75470814a6de4"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "DMB.STdWW Rfe Rmw RfiPA DpAddrdRAP Fre"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X7 = "x", X0 = "y" }
+code = """
+	MOV W2,#2
+	LDXR W1,[X0]
+	STXR W3,W2,[X0]
+	LDAR W4,[X0]
+	AND W5,W4,#128
+	LDR W6,[X7,W5,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "*y = 2 & 1:X3 = 0 & 1:X1 = 1 & 1:X4 = 2 & 1:X6 = 0"

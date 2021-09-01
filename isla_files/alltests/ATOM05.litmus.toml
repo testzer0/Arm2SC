@@ -1,0 +1,44 @@
+arch = "AArch64"
+name = "ATOM05"
+hash = "bb75bcd8380f43a40ec23e4a0ed31242"
+prefetch = "0:x=F,0:y=T,1:y=F,1:x=T"
+com = "Fr Fr"
+orig = "Hat Rmw PodWR Hat Rmw PodWR"
+symbolic = ["ok", "x", "y"]
+
+[locations]
+"ok" = "1"
+
+[thread.0]
+init = { X7 = "ok", X5 = "y", X0 = "x" }
+code = """
+	MOV W2,#1
+	LDXR W1,[X0]
+	STXR W3,W2,[X0]
+	CBNZ W3,Fail0
+	LDR W4,[X5]
+	B Exit0
+Fail0:
+	MOV W6,#0
+	STR W6,[X7]
+Exit0:
+"""
+
+[thread.1]
+init = { X7 = "ok", X5 = "x", X0 = "y" }
+code = """
+	MOV W2,#1
+	LDXR W1,[X0]
+	STXR W3,W2,[X0]
+	CBNZ W3,Fail1
+	LDR W4,[X5]
+	B Exit1
+Fail1:
+	MOV W6,#0
+	STR W6,[X7]
+Exit1:
+"""
+
+[final]
+expect = "sat"
+assertion = "*ok = 1 & 0:X1 = 0 & 0:X4 = 0 & 1:X1 = 0 & 1:X4 = 0"

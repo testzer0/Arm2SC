@@ -1,0 +1,46 @@
+arch = "AArch64"
+name = "WRR+2W+addr+dmb.sy+X"
+hash = "32d5c18b587d398637d1f059b6e8c2ad"
+prefetch = "1:x=F,1:y=T,2:y=F,2:x=W"
+com = "Rf Fr Ws"
+orig = "RfeXP DpAddrdR Fre DMB.SYdWW WsePX"
+symbolic = ["ok", "x", "y"]
+
+[locations]
+"ok" = "1"
+
+[thread.0]
+init = { X5 = "ok", X0 = "x" }
+code = """
+	MOV W1,#2
+	LDXR W2,[X0]
+	STXR W3,W1,[X0]
+	CBNZ W3,Fail0
+	B Exit0
+Fail0:
+	MOV W4,#0
+	STR W4,[X5]
+Exit0:
+"""
+
+[thread.1]
+init = { X4 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	LDR W3,[X4,W2,SXTW]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*ok = 1 & *x = 2 & 0:X2 = 1 & 1:X0 = 2 & 1:X3 = 0"

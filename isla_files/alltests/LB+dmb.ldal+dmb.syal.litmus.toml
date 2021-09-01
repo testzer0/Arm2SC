@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "LB+dmb.ldal+dmb.syal"
+hash = "0c20b2c2da7f15fa36205448e72edeb5"
+cycle = "RfeLA DMB.LDdRWAL RfeLA DMB.SYdRWAL"
+relax = ""
+safe = "DMB.LDdRW DMB.SYdRW RfeLA"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Rf"
+orig = "DMB.LDdRWAL RfeLA DMB.SYdRWAL RfeLA"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDAR W0,[X1]
+	DMB LD
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = 1"

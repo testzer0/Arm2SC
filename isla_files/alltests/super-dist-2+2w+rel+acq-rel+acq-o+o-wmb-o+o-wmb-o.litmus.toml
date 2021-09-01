@@ -1,0 +1,56 @@
+arch = "AArch64"
+name = "super-dist-2+2w+rel+acq-rel+acq-o+o-wmb-o+o-wmb-o"
+mapping = "1:X0=r1,2:X0=r2,"
+hash = "9f28891c9f6ff00e24f6bb895ebbb773"
+symbolic = ["a", "x", "y", "z"]
+
+[locations]
+"x" = "0"
+"y" = "0"
+
+[thread.0]
+init = { X0 = "x" }
+code = """
+	MOV W1,#1
+	STLR W1,[X0]
+"""
+
+[thread.1]
+init = { X1 = "x", X2 = "y" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STLR W3,[X2]
+"""
+
+[thread.2]
+init = { X1 = "y", X2 = "z" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.3]
+init = { X0 = "z", X1 = "a" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.4]
+init = { X0 = "a", X1 = "x" }
+code = """
+	MOV W2,#2
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 2:X0 = 1 & *z = 2 & *a = 2 & *x = 1"

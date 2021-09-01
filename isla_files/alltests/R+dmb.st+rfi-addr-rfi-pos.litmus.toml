@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "R+dmb.st+rfi-addr-rfi-pos"
+hash = "4dfed679635b5c6686ce9235f1a90d11"
+cycle = "Rfi PosRR Fre DMB.STdWW Wse Rfi DpAddrdW"
+relax = ""
+safe = "Rfi Fre Wse PosRR DMB.STdWW DpAddrdW"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Ws Fr"
+orig = "DMB.STdWW Wse Rfi DpAddrdW Rfi PosRR Fre"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X5 = "x", X1 = "y" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	LDR W2,[X1]
+	EOR W3,W2,W2
+	MOV W4,#1
+	STR W4,[X5,W3,SXTW]
+	LDR W6,[X5]
+	LDR W7,[X5]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 2 & 1:X2 = 2 & 1:X6 = 1 & 1:X7 = 1"

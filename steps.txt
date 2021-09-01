@@ -1,0 +1,43 @@
+To run a batch of tests, run:
+python3 arm2sc/runtests.py -bX,
+where X is the batch number (1-4) [each batch has ~2200 tests]
+To run the initial 700ish tests, pass the -k flag instead.
+The expected results are in the `expected_results` folder.
+The results will also be recorded in arm2sc/output_<suffix>.txt
+
+The alltests folder also contains some tests which are excluded from our tests; these were weeded out mostly
+by using the filter.py script in expected_results due to e.g. using instructions that are unsupported.
+Some had to be weeded out manually since e.g., they used the AT&T syntax, etc. (these were mostly handwritten, I think).
+
+To run an actual benchmark, run
+python3 arm2sc/translate_prog.py <name>
+python3 arm2sc/call_cbmc.py
+
+where <name> is the name of the benchmark folder in the bench/ directory.
+Each benchmark is structured as thus:
+	init.cnds has the initial conditions.
+	threadX.aarch64 has the code that thread X runs.
+	check.cnds has the conditions that have to be finally checked.
+Note that threadX.aarch64 uses the generic RX notation to signify register no. X. Real Aarch64 code
+uses, e.g. W3 to mean the 3rd register's bits 31-0; but to simplify we assume all registers as well as
+addresses to be of the fixed 32 bit width. [Real Aarch64 has W -> 32 bits, X -> 64 bits].
+
+To run all the benchmarks, run 
+python3 arm2sc/runtests_prog.py
+
+The results will also be recorded in arm2sc/output_prog.txt.
+
+The compare/ directory lists the time comparison of arm2sc w.r.t isla in the time.txt file.
+The file test.txt details the reasons why isla failed some tests.
+When running isla, the default parameters were used, i.e. multithreading is allowed for a single test.
+However running multiple tests parallely on different threads is disallowed.
+
+The isla-related files are in the isla_files directory. These were however copied from a different folder (the one where I cloned isla and ran the tests at); so some directory names may have to be changed to run tests. Also note that to run these tests we require some other directories, e.g. "target/" that are in the
+isla folder. Thus, to reproduce tests on isla, first install isla following the steps at its repo, then
+copy the files from isla_files to the cloned directory, and then run the tests there.
+
+Also note that translating the benchmarks to the toml form was nontrivial and ultimately done by hand.
+
+The doc/ folder has the pdf with the rules of the model and the proof of equivalence to herd.
+[Also has the main.tex and refs.bib files]
+

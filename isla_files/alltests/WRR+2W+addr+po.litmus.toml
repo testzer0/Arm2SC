@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "WRR+2W+addr+po"
+hash = "ec426e3249df5fd7e4e9ad2d1832e881"
+cycle = "Rfe DpAddrdR Fre PodWW Wse"
+relax = ""
+safe = "Rfe Fre Wse PodWW DpAddrdR"
+prefetch = "1:x=F,1:y=T,2:y=F,2:x=W"
+com = "Rf Fr Ws"
+orig = "Rfe DpAddrdR Fre PodWW Wse"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X4 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	LDR W3,[X4,W2,SXTW]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 2 & 1:X3 = 0"

@@ -1,0 +1,37 @@
+arch = "AArch64"
+name = "Z3-floating"
+hash = "819df4c0a5b811217a0a7ae4902791b3"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X5 = "z", X4 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	LDR W3,[X4,W2,SXTW]
+	LDR W6,[X5]
+"""
+
+[thread.1]
+init = { X3 = "z", X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "z" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*z = 2 & 0:X0 = 1 & 0:X3 = 0 & 0:X6 = 1"

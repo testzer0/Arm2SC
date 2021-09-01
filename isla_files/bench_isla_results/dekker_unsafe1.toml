@@ -1,0 +1,60 @@
+arch = "AArch64"
+name = "dekker_safe1"
+symbolic = ["x", "y", "z", "w"]
+
+[thread.0]
+init = { X10 = "x", X11 = "y", X12 = "z", X13 = "w" }
+code = """
+	loophead0:
+    MOV W0,#1
+    STR W0,[X10]
+    loop0:
+    LDR W0,[X11]
+    CBZ W0,endloop0
+    LDR W0,[X12]
+    CBZ W0,loop0
+    MOV W0,#0
+    STR W0,[X10]
+    wait0:
+    LDR W0,[X12]
+    CBNZ W0,wait0
+    CBZ W0,loophead0
+    endloop0:
+    LDR W0,[X13]
+    ADD W0,W0,#1
+    STR W0,[X13]
+    MOV W0,#1
+    STR W0,[X12]
+    MOV W0,#0
+    STR W0,[X10]
+"""
+
+[thread.1]
+init = { X10 = "x", X11 = "y", X12 = "z", X13 = "w" }
+code = """
+	loophead1:
+    MOV W0,#1
+    STR W0,[X11]
+    loop1:
+    LDR W0,[X10]
+    CBZ W0,endloop1
+    LDR W0,[X12]
+    CBNZ W0,loop1
+    MOV W0,#0
+    STR W0,[X10]
+    wait1:
+    LDR W0,[X12]
+    CBZ W0,wait1
+    CBNZ W0,loophead1
+    endloop1:
+    LDR W0,[X13]
+    ADD W0,W0,#1
+    STR W0,[X13]
+    MOV W0,#0
+    STR W0,[X12]
+    MOV W0,#0
+    STR W0,[X11]
+"""
+
+[final]
+assertion = "*w = 1"

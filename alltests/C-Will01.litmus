@@ -1,5 +1,4 @@
 AArch64 C-Will01
-(* Hand compilation of C-Will01 *)
 {
  ok=1;
 0:X1=x; 0:X2=y; 0:X7=z; 0:X9=ok;

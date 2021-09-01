@@ -1,0 +1,13 @@
+// i : address 0
+// j : address 1
+//
+// number of processes
+
+4
+
+// number of memory locations
+2
+
+// contents:
+0 : 1
+1 : 1

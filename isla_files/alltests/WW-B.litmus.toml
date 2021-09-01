@@ -1,0 +1,19 @@
+arch = "AArch64"
+name = "auto/WW-B"
+mapping = ""
+hash = "730c52caa684ed1647c2e2832149b6f4"
+symbolic = ["x0"]
+
+[thread.0]
+init = { X0 = "x0" }
+code = """
+	MOV W1,#2
+	STR W1,[X0]
+	DMB SY
+	MOV W1,#1
+	STR W1,[X0]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x0 = 2"

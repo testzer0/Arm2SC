@@ -1,0 +1,30 @@
+arch = "AArch64"
+name = "MP+polp+poap"
+hash = "a85a048f4478efdcf70a588dc5b8fb42"
+cycle = "RfePA PodRRAP FrePL PodWWLP"
+relax = ""
+safe = "PodWW PodRR RfePA FrePL"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "PodWWLP RfePA PodRRAP FrePL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X2 = 0"

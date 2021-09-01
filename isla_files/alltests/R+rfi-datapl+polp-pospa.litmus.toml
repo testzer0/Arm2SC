@@ -1,0 +1,35 @@
+arch = "AArch64"
+name = "R+rfi-datapl+polp-pospa"
+hash = "6ed6e03a148458b83901c9e558191627"
+cycle = "Rfi DpDatadWPL WseLL PodWRLP PosRRPA FreAP"
+relax = "FreAP WseLL"
+safe = "Rfi PosRR PodWR DpDatadW"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Ws Fr"
+orig = "Rfi DpDatadWPL WseLL PodWRLP PosRRPA FreAP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X4 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	LDR W2,[X1]
+	EOR W3,W2,W2
+	ADD W3,W3,#1
+	STLR W3,[X4]
+	LDR W5,[X4]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	LDR W2,[X3]
+	LDAR W4,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 1 & *y = 2 & 0:X5 = 2 & 0:X2 = 1 & 1:X2 = 0 & 1:X4 = 0"

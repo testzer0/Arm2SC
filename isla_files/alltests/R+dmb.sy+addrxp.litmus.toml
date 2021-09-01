@@ -1,0 +1,33 @@
+arch = "AArch64"
+name = "R+dmb.sy+addrxp"
+hash = "5b4c8bc4afb90297178fc12d287d1004"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Ws Fr"
+symbolic = ["ok", "x", "y"]
+
+[locations]
+"ok" = "1"
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X7 = "x", X0 = "y" }
+code = """
+	MOV W1,#2
+	LDXR W2,[X0]
+	STXR W3,W1,[X0]
+	EOR W5,W3,W3
+	LDR W6,[X7,W5,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "*y = 2 & 1:X2 = 1 & 1:X6 = 0 & 1:X3 = 0"

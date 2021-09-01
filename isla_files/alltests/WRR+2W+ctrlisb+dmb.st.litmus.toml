@@ -1,0 +1,41 @@
+arch = "AArch64"
+name = "WRR+2W+ctrlisb+dmb.st"
+hash = "a0018fe02788901c8b8141ffa0685da9"
+cycle = "Rfe DpCtrlIsbdR Fre DMB.STdWW Wse"
+relax = ""
+safe = "Rfe Fre Wse DMB.STdWW DpCtrlIsbdR"
+prefetch = "1:x=F,1:y=T,2:y=F,2:x=W"
+com = "Rf Fr Ws"
+orig = "Rfe DpCtrlIsbdR Fre DMB.STdWW Wse"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	CBNZ W0,LC00
+LC00:
+	ISB
+	LDR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 2 & 1:X2 = 0"

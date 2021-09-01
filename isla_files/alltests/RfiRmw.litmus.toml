@@ -1,0 +1,36 @@
+arch = "AArch64"
+name = "RfiRmw"
+hash = "28c09c95a857c83494cbd40031c94b9d"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X5 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	MOV W3,#3
+	LDXR W2,[X1]
+	STXR W4,W3,[X1]
+	AND W9,W2,#128
+	LDR W8,[X5,W9,SXTW]
+"""
+
+[thread.2]
+init = { X5 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X5]
+	DMB SY
+	LDR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 3 & 1:X4 = 0 & 1:X2 = 2 & 1:X8 = 0 & 2:X2 = 0"

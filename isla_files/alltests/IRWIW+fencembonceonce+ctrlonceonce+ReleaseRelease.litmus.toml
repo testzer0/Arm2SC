@@ -1,0 +1,49 @@
+arch = "AArch64"
+name = "IRWIW+fencembonceonce+ctrlonceonce+ReleaseRelease"
+mapping = "1:X0=r0,3:X2=r1,3:X0=r0"
+hash = "830e8f3430b5ff27aeac7c61c9ff3984"
+cycle = "FenceMbdRWOnceOnce WseOnceRelease RfeReleaseOnce DpCtrldWOnceOnce WseOnceRelease RfeReleaseOnce"
+relax = "WseOnceRelease RfeReleaseOnce"
+safe = "FenceMbdRWOnceOnce DpCtrldWOnceOnce"
+prefetch = "1:x=F,1:y=W,3:y=F,3:x=W"
+com = "Rf Ws Rf Ws"
+orig = "RfeReleaseOnce FenceMbdRWOnceOnce WseOnceRelease RfeReleaseOnce DpCtrldWOnceOnce WseOnceRelease"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X0 = "x" }
+code = """
+	MOV W1,#2
+	STLR W1,[X0]
+"""
+
+[thread.1]
+init = { X1 = "x", X2 = "y" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.2]
+init = { X0 = "y" }
+code = """
+	MOV W1,#2
+	STLR W1,[X0]
+"""
+
+[thread.3]
+init = { X1 = "y", X3 = "x" }
+code = """
+	LDR W0,[X1]
+	CMP W0,#0
+	B.EQ label155
+label155:
+	MOV W4,#1
+	STR W4,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & *y = 2 & 1:X0 = 2 & 3:X0 = 2"

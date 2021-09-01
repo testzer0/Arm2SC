@@ -1,0 +1,44 @@
+arch = "AArch64"
+name = "IRRWIW+dmb.sy+poal"
+hash = "ce7fc5226b48f0b9531371ae78559559"
+cycle = "Rfe DMB.SYdRR Fre RfePA PodRWAL WseLP"
+relax = "PodRWAL"
+safe = "Rfe Fre Wse DMB.SYdRR"
+prefetch = "1:x=F,1:y=T,3:y=F,3:x=W"
+com = "Rf Fr Rf Ws"
+orig = "Rfe DMB.SYdRR Fre RfePA PodRWAL WseLP"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	LDR W2,[X3]
+"""
+
+[thread.2]
+init = { X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.3]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 2 & 1:X2 = 0 & 3:X0 = 1"

@@ -1,0 +1,55 @@
+arch = "AArch64"
+name = "LB+data-[ws-popl-rf]lp-addrs"
+hash = "8d0f6d44346280d9835e194857ed1428"
+prefetch = "0:x=F,0:a=W,1:y=F,1:z=W,2:a=F,2:x=W,3:b=F,3:c=W"
+com = "Rf Rf Rf Rf"
+orig = "DpDatadW WsLeave PodWWPL RfBackLP DpAddrdW Rfe DpDatadW WsLeave PodWWPL RfBackLP DpAddrdW Rfe"
+symbolic = ["a", "b", "c", "x", "y", "z"]
+
+[thread.0]
+init = { X8 = "a", X5 = "z", X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	ADD W2,W2,#1
+	STR W2,[X3]
+	LDR W4,[X5]
+	EOR W6,W4,W4
+	MOV W7,#1
+	STR W7,[X8,W6,SXTW]
+"""
+
+[thread.1]
+init = { X3 = "z", X1 = "y" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.2]
+init = { X8 = "x", X5 = "c", X3 = "b", X1 = "a" }
+code = """
+	LDR W0,[X1]
+	EOR W2,W0,W0
+	ADD W2,W2,#1
+	STR W2,[X3]
+	LDR W4,[X5]
+	EOR W6,W4,W4
+	MOV W7,#1
+	STR W7,[X8,W6,SXTW]
+"""
+
+[thread.3]
+init = { X3 = "c", X1 = "b" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*b = 2 & *y = 2 & 0:X0 = 1 & 0:X4 = 1 & 2:X0 = 1 & 2:X4 = 1"

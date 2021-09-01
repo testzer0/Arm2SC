@@ -1,0 +1,39 @@
+arch = "AArch64"
+name = "3.SB+dmb.sy+po+po"
+hash = "5be19e879c6f727a52d9ed0946c113da"
+cycle = "Fre PodWR Fre PodWR Fre DMB.SYdWR"
+relax = ""
+safe = "Fre PodWR DMB.SYdWR"
+prefetch = "0:x=F,0:y=T,1:y=F,1:z=T,2:z=F,2:x=T"
+com = "Fr Fr Fr"
+orig = "DMB.SYdWR Fre PodWR Fre PodWR Fre"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	LDR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "z", X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "z" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X2 = 0 & 1:X2 = 0 & 2:X2 = 0"

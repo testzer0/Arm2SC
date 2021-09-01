@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "WRW+2W+poss"
+hash = "5110886ead604dc70421ef33b51bd9e4"
+cycle = "Rfe PosRW Wse PosWW Wse"
+relax = ""
+safe = "Rfe Wse PosWW PosRW"
+prefetch = ""
+com = "Rf Ws Ws"
+orig = "Rfe PosRW Wse PosWW Wse"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[thread.2]
+init = { X1 = "x" }
+code = """
+	MOV W0,#3
+	STR W0,[X1]
+	MOV W2,#4
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~((*x = 2 & (1:X0 = 4 | 1:X0 = 3 | 1:X0 = 1 | 1:X0 = 0)) | (*x = 1 & (1:X0 = 0 | 1:X0 = 3 | 1:X0 = 4)) | (*x = 4 & (1:X0 = 3 | 1:X0 = 1 | 1:X0 = 0)))"

@@ -1,0 +1,24 @@
+arch = "AArch64"
+name = "CoWW+dmb.sys"
+hash = "5c29d428e0a95504ed78a54c3b7de402"
+cycle = "Wse DMB.SYsWW"
+relax = ""
+safe = "Wse DMB.SYsWW"
+prefetch = ""
+com = "Ws"
+orig = "DMB.SYsWW Wse"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~*x = 2"

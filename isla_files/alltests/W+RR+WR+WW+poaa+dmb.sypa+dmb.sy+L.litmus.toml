@@ -1,0 +1,47 @@
+arch = "AArch64"
+name = "W+RR+WR+WW+poaa+dmb.sypa+dmb.sy+L"
+hash = "bca3774adb2c8eb9082a4eb738616a6c"
+cycle = "DMB.SYdWW WsePL RfeLA PodRRAA FreAP DMB.SYdWRPA FreAP"
+relax = "DMB.SYdWRPA PodRRAA"
+safe = "Fre DMB.SYdWW [WsePL,RfeLP]"
+prefetch = "1:x=F,1:y=T,2:y=F,2:z=T,3:z=F,3:x=W"
+com = "Rf Fr Fr Ws"
+orig = "RfeLA PodRRAA FreAP DMB.SYdWRPA FreAP DMB.SYdWW WsePL"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDAR W0,[X1]
+	LDAR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "z", X1 = "y" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	LDAR W2,[X3]
+"""
+
+[thread.3]
+init = { X3 = "x", X1 = "z" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 2 & 1:X2 = 0 & 2:X2 = 0"

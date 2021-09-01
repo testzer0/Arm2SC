@@ -1,0 +1,33 @@
+arch = "AArch64"
+name = "2+2W+dmb.sys+pos"
+hash = "0e78d1e04830b090f46e9e48c9687879"
+cycle = "Wse PosWW Wse DMB.SYsWW"
+relax = ""
+safe = "Wse PosWW DMB.SYsWW"
+prefetch = ""
+com = "Ws Ws"
+orig = "DMB.SYsWW Wse PosWW Wse"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+	DMB SY
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	MOV W0,#3
+	STR W0,[X1]
+	MOV W2,#4
+	STR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~(*x = 2 | *x = 4)"

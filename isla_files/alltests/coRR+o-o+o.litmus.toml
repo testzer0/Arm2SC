@@ -1,0 +1,26 @@
+arch = "AArch64"
+name = "coRR+o-o+o"
+mapping = "0:X2=r2,0:X0=r1,"
+hash = "56def69e5b522e805f23e95e9a1a76a1"
+symbolic = ["x"]
+
+[locations]
+"x" = "0"
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	LDR W2,[X1]
+"""
+
+[thread.1]
+init = { X0 = "x" }
+code = """
+	MOV W1,#1
+	STR W1,[X0]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 0:X2 = 0"

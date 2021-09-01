@@ -1,0 +1,49 @@
+arch = "AArch64"
+name = "W+RW+WW+WR+dmb.sy+dmb.sylp+dmb.sy+L"
+hash = "743c1a9463c602760c3ff93e920ad3a2"
+cycle = "Wse DMB.SYdWR FrePL RfeLP DMB.SYdRW WsePL DMB.SYdWWLP"
+relax = "DMB.SYdWWLP"
+safe = "Wse DMB.SYdWR DMB.SYdRW [FrePL,RfeLP]"
+prefetch = "1:x=F,1:y=W,2:y=F,2:z=W,3:z=F,3:x=T"
+com = "Rf Ws Ws Fr"
+orig = "RfeLP DMB.SYdRW WsePL DMB.SYdWWLP Wse DMB.SYdWR FrePL"
+symbolic = ["x", "y", "z"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "z", X1 = "y" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	DMB SY
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.3]
+init = { X3 = "x", X1 = "z" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	DMB SY
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*y = 2 & *z = 2 & 1:X0 = 1 & 3:X2 = 0"

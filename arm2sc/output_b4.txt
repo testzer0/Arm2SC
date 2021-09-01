@@ -2219,4 +2219,3 @@ W+RR+WR+WR+dmb.sypa+dmb.sypa+dmb.sy+L.litmus : unsatisfiable
 R+po-ctrlpl+pola.litmus : unsatisfiable
 ISA2+dmb.ld+data+dmb.sy.litmus : satisfiable
 IRRWIW+poonceonces+ReleaseRelease.litmus : satisfiable
-MP+dmb.sy+[fr-rf]-ctrl-addr-rfi.litmus : unsatisfiable

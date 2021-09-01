@@ -1,0 +1,73 @@
+arm2sc
+
+Batch 1
+
+Total time taken: 559.7216061189945 seconds
+Averaged over 2200 tests, 0.2544189118722702 seconds
+
+Batch 2
+
+Total time taken: 549.7147202799993 seconds
+Averaged over 2200 tests, 0.24987032739999968 seconds
+
+Batch 3
+
+Total time taken: 553.6837945489933 seconds
+Averaged over 2200 tests, 0.25167445206772426 seconds
+
+Batch 4
+
+Total time taken: 544.7275765209965 seconds
+Averaged over 2221 tests, 0.24526230370148425 seconds
+
+OVERALL
+2207.8477 seconds for 8821 tests
+Average 0.25029449 seconds over 8821 tests
+
+isla
+
+Errors/timeouts:
+
+1) Error in parsing smt output to get allowed/forbidden ...
+z3 errors:
+(error "line 9838 column 10: model is not available")
+35 MP+dmb.sy+fri-rfi-data-rfi-pos.litmus : EXPECTED satisfiable GOT unsatisfiable.....FAIL in 308.86065161400074 seconds
+2) test no. 44 takes way too long, not completed after ~30 min.
+3) Error in parsing smt output to get allowed/forbidden ...
+z3 errors:
+(error "line 8848 column 10: model is not available")
+54 R+popx+poxp+SYS2.litmus : EXPECTED satisfiable GOT unsatisfiable.....FAIL in 59.857450382000025 seconds
+4) Error in parsing smt output to get allowed/forbidden ...
+z3 errors:
+(error "line 11393 column 10: model is not available")
+67 RWC+ctrl+dmb.sy.litmus : EXPECTED satisfiable GOT unsatisfiable.....FAIL in 38.23087119199954 seconds
+5) Error in parsing smt output to get allowed/forbidden ...
+z3 errors:
+(error "line 9708 column 10: model is not available")
+79 2+2W+dmb.sy+rfi-addr-rfi-data.litmus : EXPECTED satisfiable GOT unsatisfiable.....FAIL in 416.4187127460009 seconds
+6) Error in parsing smt output to get allowed/forbidden ...
+z3 errors:
+(error "line 14319 column 10: model is not available")
+104 IRIW+poacquireonces+OnceOnce.litmus : EXPECTED unsatisfiable GOT unsatisfiable.....PASS in 43.27295828699971 seconds
+7) Error in parsing smt output to get allowed/forbidden ...
+z3 errors:
+(error "line 7418 column 68: unknown function/constant last_write_to_32")
+111 SC-DEP-CTRL.litmus : EXPECTED satisfiable GOT unsatisfiable.....FAIL in 7.930723098999806 seconds
+8) Error in parsing smt output to get allowed/forbidden ...
+z3 errors:
+(error "line 10631 column 10: model is not available")
+114 2+2W+poxxs.litmus : EXPECTED satisfiable GOT unsatisfiable.....FAIL in 196.15186949500094 seconds
+
+First 40 tests other than test 35:
+Total time taken: 615.0970391820028 seconds
+Averaged over 39 tests, 15.771718953384688 seconds
+(arm2sc is over 63x faster)
+
+First 43 tests other than test 35:
+Total time taken: 965.3865400680024 seconds
+Averaged over 42 tests, 22.985393811142917 seconds
+(arm2sc is over 91.8x faster)
+
+Total time taken: 1833.155707467 seconds
+Averaged over 111 tests, 16.514916283486485 seconds
+(arm2sc is nearly 66x faster)

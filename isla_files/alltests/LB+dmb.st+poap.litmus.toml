@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "LB+dmb.st+poap"
+hash = "bb7fffc57dfce6dafc9711cbb0be12d7"
+cycle = "Rfe DMB.STdRW RfePA PodRWAP"
+relax = ""
+safe = "Rfe PodRW DMB.STdRW RfePA"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Rf"
+orig = "DMB.STdRW RfePA PodRWAP Rfe"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDAR W0,[X1]
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = 1"

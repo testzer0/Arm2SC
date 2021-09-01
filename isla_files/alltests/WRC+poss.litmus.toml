@@ -1,0 +1,36 @@
+arch = "AArch64"
+name = "WRC+poss"
+hash = "9aff9860556e44d18fc8a970789b63d5"
+cycle = "Rfe PosRW Rfe PosRR Fre"
+relax = ""
+safe = "Rfe Fre PosRW PosRR"
+prefetch = ""
+com = "Rf Rf Fr"
+orig = "Rfe PosRW Rfe PosRR Fre"
+symbolic = ["x"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STR W0,[X1]
+"""
+
+[thread.1]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	MOV W2,#2
+	STR W2,[X1]
+"""
+
+[thread.2]
+init = { X1 = "x" }
+code = """
+	LDR W0,[X1]
+	LDR W2,[X1]
+"""
+
+[final]
+expect = "sat"
+assertion = "~((1:X0 = 0 & ((2:X0 = 0 & ((*x = 1 & (2:X2 = 2 | 2:X2 = 1 | 2:X2 = 0)) | (*x = 2 & (2:X2 = 0 | 2:X2 = 1 | 2:X2 = 2)))) | (2:X0 = 1 & ((2:X2 = 1 & (*x = 1 | *x = 2)) | (2:X2 = 2 & *x = 2))) | (2:X0 = 2 & ((2:X2 = 2 & (*x = 2 | *x = 1)) | (2:X2 = 1 & *x = 1))))) | (1:X0 = 1 & *x = 2 & ((2:X0 = 0 & (2:X2 = 0 | 2:X2 = 1 | 2:X2 = 2)) | (2:X0 = 1 & (2:X2 = 2 | 2:X2 = 1)) | (2:X0 = 2 & 2:X2 = 2))))"

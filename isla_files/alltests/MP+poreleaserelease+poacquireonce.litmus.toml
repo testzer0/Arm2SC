@@ -1,0 +1,31 @@
+arch = "AArch64"
+name = "MP+poreleaserelease+poacquireonce"
+mapping = "1:X2=r1,1:X0=r0"
+hash = "7b0b6c6ca5234261449289bf00507667"
+cycle = "PodRRAcquireOnce FreOnceRelease PodWWReleaseRelease RfeReleaseAcquire"
+relax = "FreOnceRelease RfeReleaseAcquire"
+safe = "PodRRAcquireOnce PodWWReleaseRelease"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=T"
+com = "Rf Fr"
+orig = "PodWWReleaseRelease RfeReleaseAcquire PodRRAcquireOnce FreOnceRelease"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STLR W2,[X0]
+	MOV W2,#1
+	STLR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X3 = "x" }
+code = """
+	LDAR W0,[X1]
+	LDR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X2 = 0"

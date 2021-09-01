@@ -1,0 +1,24 @@
+arch = "AArch64"
+name = "SIMPLE2+X"
+hash = "5bfd3bdc1094a729605edca333b7e1bc"
+symbolic = ["x"]
+
+[thread.0]
+init = { X0 = "x" }
+code = """
+	MOV W3,#1
+	LDXR W1,[X0]
+	STXR W2,W3,[X0]
+"""
+
+[thread.1]
+init = { X0 = "x" }
+code = """
+	MOV W3,#2
+	LDXR W1,[X0]
+	STXR W2,W3,[X0]
+"""
+
+[final]
+expect = "unsat"
+assertion = "~true"

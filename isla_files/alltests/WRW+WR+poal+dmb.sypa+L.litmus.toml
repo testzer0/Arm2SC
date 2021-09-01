@@ -1,0 +1,38 @@
+arch = "AArch64"
+name = "WRW+WR+poal+dmb.sypa+L"
+hash = "7cb7fcc3d348243db6f5500e95986ab5"
+cycle = "DMB.SYdWRPA FreAL RfeLA PodRWAL WseLP"
+relax = "DMB.SYdWRPA PodRWAL"
+safe = "Wse [FrePL,RfeLP]"
+prefetch = "1:x=F,1:y=W,2:y=F,2:x=T"
+com = "Rf Ws Fr"
+orig = "RfeLA PodRWAL WseLP DMB.SYdWRPA FreAL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X1 = "x" }
+code = """
+	MOV W0,#1
+	STLR W0,[X1]
+"""
+
+[thread.1]
+init = { X3 = "y", X1 = "x" }
+code = """
+	LDAR W0,[X1]
+	MOV W2,#1
+	STLR W2,[X3]
+"""
+
+[thread.2]
+init = { X3 = "x", X1 = "y" }
+code = """
+	MOV W0,#2
+	STR W0,[X1]
+	DMB SY
+	LDAR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*y = 2 & 1:X0 = 1 & 2:X2 = 0"

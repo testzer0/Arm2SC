@@ -1,0 +1,27 @@
+arch = "AArch64"
+name = "MP+wmb+addr-rb_dep"
+mapping = "1:X3=r2,1:X2=r1,1:X0=r0"
+hash = "e51569e7bb78f891b5a6aa1847d3db1b"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X0 = "x", X1 = "y" }
+code = """
+	MOV W2,#1
+	STR W2,[X0]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X1]
+"""
+
+[thread.1]
+init = { X1 = "y", X4 = "x" }
+code = """
+	LDR W0,[X1]
+	AND W2,W0,#128
+	LDR W3,[X4,W2,SXTW]
+"""
+
+[final]
+expect = "sat"
+assertion = "1:X0 = 1 & 1:X3 = 0"

@@ -1,0 +1,79 @@
+arch = "AArch64"
+name = "auto/RW-r+RW-a+RW-B+RW-B+RW-B+RW-B+RW-B+RW-B"
+mapping = "0:X0=r1,1:X0=r1,2:X0=r1,3:X0=r1,4:X0=r1,5:X0=r1,6:X0=r1,7:X0=r1"
+hash = "ff35911198e363e4dd943c66733e3fa6"
+symbolic = ["x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"]
+
+[thread.0]
+init = { X1 = "x0", X2 = "x1" }
+code = """
+	LDR W0,[X1]
+	MOV W3,#1
+	STLR W3,[X2]
+"""
+
+[thread.1]
+init = { X1 = "x1", X2 = "x2" }
+code = """
+	LDAR W0,[X1]
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.2]
+init = { X1 = "x2", X2 = "x3" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.3]
+init = { X1 = "x3", X2 = "x4" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.4]
+init = { X1 = "x4", X2 = "x5" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.5]
+init = { X1 = "x5", X2 = "x6" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.6]
+init = { X1 = "x6", X2 = "x7" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[thread.7]
+init = { X1 = "x7", X2 = "x0" }
+code = """
+	LDR W0,[X1]
+	DMB SY
+	MOV W3,#1
+	STR W3,[X2]
+"""
+
+[final]
+expect = "sat"
+assertion = "0:X0 = 1 & 1:X0 = 1 & 2:X0 = 1 & 3:X0 = 1 & 4:X0 = 1 & 5:X0 = 1 & 6:X0 = 1 & 7:X0 = 1"

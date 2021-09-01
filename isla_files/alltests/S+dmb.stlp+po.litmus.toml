@@ -1,0 +1,32 @@
+arch = "AArch64"
+name = "S+dmb.stlp+po"
+hash = "f4db97eafc1773fc8a0d2503e3f214e5"
+cycle = "Rfe PodRW WsePL DMB.STdWWLP"
+relax = ""
+safe = "Rfe PodRW DMB.STdWW WsePL"
+prefetch = "0:x=F,0:y=W,1:y=F,1:x=W"
+com = "Rf Ws"
+orig = "DMB.STdWWLP Rfe PodRW WsePL"
+symbolic = ["x", "y"]
+
+[thread.0]
+init = { X3 = "y", X1 = "x" }
+code = """
+	MOV W0,#2
+	STLR W0,[X1]
+	DMB ST
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[thread.1]
+init = { X3 = "x", X1 = "y" }
+code = """
+	LDR W0,[X1]
+	MOV W2,#1
+	STR W2,[X3]
+"""
+
+[final]
+expect = "sat"
+assertion = "*x = 2 & 1:X0 = 1"
